@@ -6,7 +6,7 @@ A comprehensive research tool with an intuitive graphical interface that scrapes
 
 ## 🚀 Quick Start
 
-### **Windows Users (Recommended)**
+### **Windows Users (GUI)**
 ```bash
 # 1. First time setup (run once)
 install.bat
@@ -14,6 +14,24 @@ install.bat
 # 2. Launch GUI (run anytime)
 python src/interfaces/gui_main.py
 ```
+
+### **Ubuntu/Linux Users (CLI)**
+```bash
+# 1. Installation
+bash install.sh
+
+# 2. Activate virtual environment
+source .venv/bin/activate
+
+# 3. Use CLI
+python -m src.cli.main --help
+
+# Examples:
+python -m src.cli.main scrape full --pubmed-keywords "your,keywords"
+python -m src.cli.main hypothesis generate
+```
+
+See [INSTALL_UBUNTU.md](INSTALL_UBUNTU.md) for detailed server installation.
 
 ### **Manual Installation**
 ```bash
@@ -23,8 +41,11 @@ python -m venv .venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Launch GUI
+# Windows: Launch GUI
 python src/interfaces/gui_main.py
+
+# Linux: Use CLI
+python -m src.cli.main --help
 ```
 
 ## 📁 Project Structure
@@ -32,11 +53,13 @@ python src/interfaces/gui_main.py
 The codebase is now organized into logical modules for better maintainability:
 
 ```
-AHG-UBR5/
+AI-Research-Processor/
 ├── src/                          # Main source code
 │   ├── core/                     # Core functionality
 │   │   ├── chromadb_manager.py   # Vector database management
-│   │   ├── processing_config.py  # Configuration settings
+│   │   ├── config_loader.py      # Configuration management
+│   │   ├── logging_config.py     # Logging system
+│   │   ├── processing_config.py  # Processing settings
 │   │   └── network_fix.py        # Network connectivity fixes
 │   ├── scrapers/                 # Data scraping modules
 │   │   ├── pubmed_scraper_json.py
@@ -48,22 +71,38 @@ AHG-UBR5/
 │   │   ├── hypothesis_tools.py
 │   │   └── optimized_prompts.py
 │   ├── utils/                    # Utility modules
-│   │   └── citation_mapping_utils.py # Citation analysis tools
+│   │   └── citation_mapping_utils.py
+│   ├── cli/                      # Command-line interface
+│   │   ├── main.py               # CLI application (Click-based)
+│   │   └── utils.py              # CLI utilities
 │   └── interfaces/               # User interfaces
-│       ├── main.py               # Terminal interface
-│       └── gui_main.py           # GUI interface
+│       ├── main.py               # Legacy terminal interface
+│       └── gui_main.py           # GUI interface (Windows)
 ├── scripts/                      # Command-line tools
 │   └── analyze_citations.py     # Citation analysis script
 ├── config/                       # Configuration files
-│   ├── keys.json                 # API keys
-│   ├── search_keywords_config.json
-│   └── critique_config.json
-├── install.bat                   # Installation script
-├── run.bat                       # GUI launcher script
-└── run_on_terminal.bat           # Terminal launcher script
+│   ├── server.yaml               # Server settings (paths, logging)
+│   ├── processing.yaml           # Performance tuning
+│   ├── search.yaml               # Search keywords
+│   ├── critique.yaml             # Hypothesis evaluation
+│   ├── network.yaml              # Network settings
+│   └── keys.json                 # Legacy API keys (use .env instead)
+├── examples/                     # Example automation scripts
+│   ├── batch_scrape.sh           # Batch scraping
+│   ├── daily_update.sh           # Daily updates
+│   └── full_pipeline.sh          # Complete pipeline
+├── install.bat                   # Windows installation
+├── install.sh                    # Ubuntu/Linux installation
+├── setup_directories.sh          # Directory setup script
+├── run.bat                       # GUI launcher (Windows)
+├── env.example                   # Environment template
+├── .env                          # API keys (DO NOT COMMIT)
 ├── data/                         # Data directories
-├── docs/                         # Documentation
-└── hypothesis_export/            # Export files
+├── hypothesis_export/            # Export files
+├── INSTALL_UBUNTU.md             # Ubuntu installation guide
+├── CLI_GUIDE.md                  # CLI reference
+├── CONFIG_GUIDE.md               # Configuration guide
+└── TROUBLESHOOTING.md            # Troubleshooting guide
 ```
 
 ## 🖥️ GUI Interface
@@ -422,13 +461,57 @@ See the LICENSE file for details.
 - **Tkinter** - GUI framework
 - **Paperscraper** - Preprint data access
 
+## 🖥️ Ubuntu Server / Command-Line Interface
+
+The AI Research Processor now includes a complete CLI for Ubuntu server deployment!
+
+### CLI Features
+
+- **Full Feature Parity**: All GUI features available via command line
+- **Click Framework**: Professional, user-friendly CLI
+- **Automation Ready**: Perfect for scheduled runs and batch processing
+- **Server Optimized**: Designed for Ubuntu/Linux servers
+
+### Quick CLI Commands
+
+```bash
+# Scrape all sources
+python -m src.cli.main scrape full --pubmed-keywords "your,keywords"
+
+# Load embeddings
+python -m src.cli.main embeddings load
+
+# Show database status
+python -m src.cli.main db show --by-source
+
+# Generate hypotheses
+python -m src.cli.main hypothesis generate
+
+# Get help
+python -m src.cli.main --help
+```
+
+### Documentation
+
+- **[INSTALL_UBUNTU.md](INSTALL_UBUNTU.md)** - Complete Ubuntu installation guide
+- **[CLI_GUIDE.md](CLI_GUIDE.md)** - Full CLI reference and examples
+- **[CONFIG_GUIDE.md](CONFIG_GUIDE.md)** - Configuration documentation
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Example Scripts
+
+The `examples/` directory contains automation scripts:
+- `batch_scrape.sh` - Scrape multiple keyword sets
+- `daily_update.sh` - Daily data updates (cron-ready)
+- `full_pipeline.sh` - Complete workflow automation
+
 ## 📞 Support
 
 For questions, issues, or contributions:
-- Create an issue in the repository
-- Review log files for error details
-- Check the Tutorial tab in the GUI for comprehensive guidance
-- Review the documentation and troubleshooting sections
-- Contact me at marcellino.rau@gmail.com for any questions or info!
+- **Ubuntu/CLI**: Check [INSTALL_UBUNTU.md](INSTALL_UBUNTU.md), [CLI_GUIDE.md](CLI_GUIDE.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Windows/GUI**: Check the Tutorial tab in the GUI for comprehensive guidance
+- **General**: Review log files in `data/logs/` for error details
+- **Issues**: Create an issue in the repository
+- **Contact**: marcellino.rau@gmail.com for questions or info
 
 ---
