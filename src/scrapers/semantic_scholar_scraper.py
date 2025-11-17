@@ -985,35 +985,24 @@ class SemanticScholarScraper:
         
         return " | ".join(text_parts)
     
-    def _get_google_embedding(self, text: str, api_key: str) -> Optional[List[float]]:
+    def _get_google_embedding(self, text: str, api_key: str = None) -> Optional[List[float]]:
         """
-        Get embedding from Google's text-embedding-004 model.
+        Get embedding using unified EmbeddingsClient.
+        This maintains backward compatibility while using the new abstraction.
         
         Args:
             text: Text to embed
-            api_key: Google API key
+            api_key: Google API key (optional, for backward compatibility)
             
         Returns:
             Embedding vector or None if failed
         """
+        from src.core.embeddings_client import EmbeddingsClient
+        
         try:
-            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
-            
-            headers = {
-                "Content-Type": "application/json"
-            }
-            
-            data = {
-                "content": {
-                    "parts": [{"text": text}]
-                }
-            }
-            
-            params = {
-                "key": api_key
-            }
-            
-            response = requests.post(url, headers=headers, json=data, params=params, timeout=self.timeout)
+            # Use unified embeddings client
+            embeddings_client = EmbeddingsClient()
+            return embeddings_client.get_embedding(text)
             
             if response.status_code == 200:
                 result = response.json()

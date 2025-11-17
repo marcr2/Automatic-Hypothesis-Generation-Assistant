@@ -12,6 +12,8 @@ from tkinter import messagebox
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.core.chromadb_manager import ChromaDBManager
+from src.core.embeddings_client import EmbeddingsClient
+from src.core.llm_client import LLMClient
 import logging
 from src.ai.hypothesis_tools import HypothesisGenerator, HypothesisCritic, MetaHypothesisGenerator, get_lab_goals, get_lab_config, is_ubr5_related
 import time
@@ -325,29 +327,22 @@ class EnhancedRAGQuery:
 
         print("🚀 Initializing Enhanced RAG System with Performance Optimizations...")
 
-        # Load API keys first
+        # Initialize unified clients for LLM and embeddings
         try:
-            with open("config/keys.json") as f:
-                keys = json.load(f)
-                self.api_key = keys["GOOGLE_API_KEY"]  # For embeddings
-                self.gemini_api_key = keys["GEMINI_API_KEY"]  # For text generation
-            print("✅ API keys loaded successfully")
+            self.embeddings_client = EmbeddingsClient()
+            print("✅ Embeddings client initialized successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to load API keys: {e}")
-            self.api_key = None
-            self.gemini_api_key = None
-
-        # Initialize Gemini client
+            logger.error(f"❌ Failed to initialize embeddings client: {e}")
+            self.embeddings_client = None
+        
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.gemini_api_key)
-            self.gemini_client = genai
-            print("✅ Gemini client initialized successfully")
+            self.llm_client = LLMClient()
+            print("✅ LLM client initialized successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Gemini client: {e}")
-            self.gemini_client = None
+            logger.error(f"❌ Failed to initialize LLM client: {e}")
+            self.llm_client = None
 
-        # Initialize hypothesis tools after Gemini client is ready
+        # Initialize hypothesis tools after LLM client is ready
         self._initialize_hypothesis_tools()
 
         # Initialize ChromaDB if requested
@@ -438,29 +433,18 @@ class EnhancedRAGQuery:
             logger.error(f"❌ Failed to populate ChromaDB: {e}")
 
     def get_google_embedding(self, text):
-        """Get embedding for a query text using Google's API."""
-        if not self.api_key:
-            logger.error("❌ API key not available")
+        """
+        Get embedding for a query text using configured embeddings provider.
+        This method wraps the EmbeddingsClient for backward compatibility.
+        """
+        if not self.embeddings_client:
+            logger.error("❌ Embeddings client not available")
             return None
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.api_key}"
-        headers = {"Content-Type": "application/json"}
-        data = {"model": "models/text-embedding-004", "content": {"parts": [{"text": text}]}}
-
+        
         try:
-            # Add timeout to prevent hanging
-            response = requests.post(url, headers=headers, json=data, timeout=30)
-            response.raise_for_status()
-            embedding = response.json()["embedding"]["values"]
-            return embedding
-        except requests.exceptions.Timeout:
-            logger.error("❌ Query embedding request timed out (30s)")
-            return None
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Network error getting query embedding: {e}")
-            return None
+            return self.embeddings_client.get_embedding(text)
         except Exception as e:
-            logger.error(f"❌ Error getting query embedding: {e}")
+            logger.error(f"❌ Error getting embedding: {e}")
             return None
 
     def load_embeddings_from_json(self, filename):
@@ -3361,13 +3345,14 @@ class EnhancedRAGQuery:
             return False
 
     def _initialize_hypothesis_tools(self):
-        """Initialize the HypothesisGenerator, HypothesisCritic, and MetaHypothesisGenerator."""
-        if self.gemini_client:
-            self.hypothesis_generator = HypothesisGenerator(model=self.gemini_client)
+        """Initialize the HypothesisGenerator, HypothesisCritic, and MetaHypothesisGenerator with unified LLM client."""
+        if self.llm_client:
+            self.hypothesis_generator = HypothesisGenerator(model=self.llm_client)
             def embedding_fn(text):
-                return np.array(self.get_google_embedding(text))
-            self.hypothesis_critic = HypothesisCritic(model=self.gemini_client, embedding_fn=embedding_fn)
-            self.meta_hypothesis_generator = MetaHypothesisGenerator(model=self.gemini_client)
+                embedding = self.get_google_embedding(text)
+                return np.array(embedding) if embedding else np.zeros(768)
+            self.hypothesis_critic = HypothesisCritic(model=self.llm_client, embedding_fn=embedding_fn)
+            self.meta_hypothesis_generator = MetaHypothesisGenerator(model=self.llm_client)
             
             # Connect rate limiter to hypothesis tools
             self.hypothesis_generator.rate_limiter = self.gemini_rate_limiter
@@ -3376,7 +3361,7 @@ class EnhancedRAGQuery:
             
             print("✅ Hypothesis tools initialized successfully with rate limiting.")
         else:
-            print("⚠️ Gemini client not initialized, skipping hypothesis tools.")
+            print("⚠️ LLM client not initialized, skipping hypothesis tools.")
 
     def get_performance_stats(self):
         """Get performance statistics for the system."""

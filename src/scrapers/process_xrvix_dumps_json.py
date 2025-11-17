@@ -1609,41 +1609,24 @@ def enrich_all_batches_metadata_from_citations(
     return stats
 
 
-def get_google_embedding(text, api_key, retry_count=0, skip_base_delay=False):
-    """Get embedding with global rate limiting and exponential backoff"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
-    data = {
-        "model": "models/text-embedding-004",
-        "content": {"parts": [{"text": text}]},
-    }
+def get_google_embedding(text, api_key=None, retry_count=0, skip_base_delay=False):
+    """
+    Get embedding using unified EmbeddingsClient.
+    This function maintains backward compatibility while using the new abstraction.
+    """
+    from src.core.embeddings_client import EmbeddingsClient
+    
     try:
-        # Strict global paper/sec rate limit before every API call
-        # wait_for_paper_rate_limit() # Removed global rate limiting
+        # Use unified embeddings client
+        embeddings_client = EmbeddingsClient()
+        
         # Add base rate limiting delay (ensures we stay under 25 req/sec)
         if RATE_LIMIT_DELAY > 0 and not skip_base_delay:
             time.sleep(RATE_LIMIT_DELAY)
-        response = requests.post(
-            url, headers=headers, json=data, timeout=REQUEST_TIMEOUT
-        )
+        
         increment_request_counter()
-
-        if response.status_code == 429:
-            if retry_count < MAX_RETRIES:
-                logger.info(
-                    f"⚠️  Rate limited (attempt {retry_count + 1}/{MAX_RETRIES}). Waiting 60s..."
-                )
-                time.sleep(60)
-                return get_google_embedding(text, api_key, retry_count + 1)
-            else:
-                logger.error(f"❌ Max retries reached for rate limit")
-                return None
-        response.raise_for_status()
-        return response.json()["embedding"]["values"]
-    except requests.exceptions.Timeout:
-        logger.warning(f"⚠️  Timeout for text: {text[:50]}...")
-        return None
-    except requests.exceptions.RequestException as e:
+        return embeddings_client.get_embedding(text, retry_count)
+    except Exception as e:
         if "429" in str(e):
             if retry_count < MAX_RETRIES:
                 logger.info(

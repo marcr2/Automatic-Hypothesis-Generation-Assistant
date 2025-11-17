@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import logging
 import glob
+from src.core.config_loader import load_execution_config
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -44,10 +45,44 @@ class ChromaDBManager:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize the ChromaDB client with persistent storage."""
+        """
+        Initialize the ChromaDB client based on execution mode.
+        - Local mode: PersistentClient (stores data on local disk)
+        - Distributed mode: HttpClient (connects to remote ChromaDB server)
+        """
         try:
-            self.client = chromadb.PersistentClient(path=self.persist_directory)
-            logger.info(f"✅ ChromaDB client initialized with persistence at: {self.persist_directory}")
+            # Load execution configuration
+            config = load_execution_config()
+            chromadb_config = config.get_chromadb_config()
+            
+            if config.is_distributed:
+                # Distributed mode: Connect to remote ChromaDB server
+                host = chromadb_config.get("host", os.getenv("CHROMA_HOST", "localhost"))
+                port = chromadb_config.get("port", int(os.getenv("CHROMA_PORT", "8000")))
+                
+                logger.info(f"🌐 Initializing ChromaDB HttpClient (distributed mode)...")
+                logger.info(f"   Connecting to: {host}:{port}")
+                
+                self.client = chromadb.HttpClient(host=host, port=port)
+                
+                # Test connection
+                try:
+                    self.client.heartbeat()
+                    logger.info(f"✅ ChromaDB HttpClient connected successfully to {host}:{port}")
+                except Exception as conn_error:
+                    logger.error(f"❌ Failed to connect to ChromaDB server at {host}:{port}")
+                    logger.error(f"   Make sure ChromaDB server is running: chroma run --host {host} --port {port}")
+                    raise ConnectionError(f"Cannot connect to ChromaDB server: {conn_error}")
+            else:
+                # Local mode: Use persistent client with local storage
+                persist_dir = chromadb_config.get("persist_directory", self.persist_directory)
+                
+                logger.info(f"💾 Initializing ChromaDB PersistentClient (local mode)...")
+                logger.info(f"   Storage directory: {persist_dir}")
+                
+                self.client = chromadb.PersistentClient(path=persist_dir)
+                logger.info(f"✅ ChromaDB PersistentClient initialized at: {persist_dir}")
+                
         except Exception as e:
             logger.error(f"❌ Failed to initialize ChromaDB client: {e}")
             raise

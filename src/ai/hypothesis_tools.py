@@ -108,7 +108,7 @@ class MetaHypothesisGenerator:
     to send to the actual hypothesis generator for diverse hypothesis generation.
     """
     def __init__(self, model=None):
-        self.model = model  # Gemini client
+        self.model = model  # LLMClient (supports Gemini and local LLMs)
 
     def build_meta_prompt(self, user_prompt: str) -> str:
         """Build prompt for generating 5 different meta-hypotheses from user input."""
@@ -200,10 +200,10 @@ Meta-Hypotheses:
 class HypothesisGenerator:
     """
     Generates scientific hypotheses tailored to UBR-5 and Dr. Xiaojing Ma's lab using provided literature context.
-    Uses a Gemini LLM client for generation.
+    Uses LLMClient for generation (supports Gemini and local LLMs).
     """
     def __init__(self, model=None):
-        self.model = model  # Gemini client
+        self.model = model  # LLMClient (supports Gemini and local LLMs)
 
     def build_prompt(self, context_chunks: List[str], n: int = 3, meta_hypothesis: str = None) -> str:
         """Build optimized prompt for hypothesis generation."""
@@ -227,6 +227,7 @@ class HypothesisGenerator:
                 estimated_tokens = self.rate_limiter.estimate_tokens(prompt) + 2000  # Buffer for response
                 self.rate_limiter.wait_if_needed(estimated_tokens)
             
+            # Use unified LLM client (supports both Gemini and local LLMs)
             model = self.model.GenerativeModel("gemini-2.5-flash")
             
             # Use retry logic for quota exceeded errors
@@ -324,6 +325,7 @@ Generate the refined hypothesis now:"""
                 estimated_tokens = self.rate_limiter.estimate_tokens(refinement_prompt) + 2000
                 self.rate_limiter.wait_if_needed(estimated_tokens)
             
+            # Use unified LLM client (supports both Gemini and local LLMs)
             model = self.model.GenerativeModel("gemini-2.5-flash")
             
             def make_api_call():
@@ -477,11 +479,11 @@ LAB_GOALS = get_lab_goals()
 class HypothesisCritic:
     """
     Critiques scientific hypotheses in the context of UBR-5 and Dr. Xiaojing Ma's lab using provided literature.
-    Uses a Gemini LLM client for critique and parses scores/verdict.
+    Uses LLMClient for critique (supports Gemini and local LLMs).
     Supports customizable critique prompts via configuration file.
     """
     def __init__(self, model=None, embedding_fn=None, critique_config_file="config/critique_config.json"):
-        self.model = model  # Gemini client
+        self.model = model  # LLMClient (supports Gemini and local LLMs)
         self.embedding_fn = embedding_fn  # Function to get embeddings
         self.critique_config_file = critique_config_file
         self.critique_config = self._load_critique_config()
@@ -555,6 +557,7 @@ class HypothesisCritic:
             estimated_tokens = self.rate_limiter.estimate_tokens(prompt_text) + 1500  # Buffer for response
             self.rate_limiter.wait_if_needed(estimated_tokens)
         
+        # Use unified LLM client (supports both Gemini and local LLMs)
         model = self.model.GenerativeModel("gemini-2.5-flash")
         
         # Use retry logic for quota exceeded errors

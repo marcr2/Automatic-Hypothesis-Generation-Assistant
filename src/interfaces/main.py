@@ -651,11 +651,30 @@ def cleanup_autosave_files(pubmed_dir):
         print(f"⚠️  Error during autosave cleanup: {e}")
 
 def generate_embeddings():
-    """Generate embeddings for processed data."""
+    """Generate embeddings for processed data using unified EmbeddingsClient."""
+    from src.core.embeddings_client import EmbeddingsClient
+    from src.core.config_loader import load_execution_config
+    
     print("\n🔄 Starting Embedding Generation...")
     print("="*60)
     
     try:
+        # Display configuration
+        config = load_execution_config()
+        embeddings_config = config.get_embeddings_config()
+        print(f"\n📊 Embeddings Configuration:")
+        print(f"   Provider: {embeddings_config.get('provider', 'google')}")
+        print(f"   Model: {embeddings_config.get('model_name', 'text-embedding-004')}")
+        
+        # Initialize embeddings client
+        try:
+            embeddings_client = EmbeddingsClient()
+            print("✅ Embeddings client initialized successfully")
+        except Exception as e:
+            print(f"❌ Failed to initialize embeddings client: {e}")
+            print("💡 Check your configuration in config/LLM_config.json or config/keys.json")
+            return
+        
         # Check if we have PubMed data to process
         pubmed_files = []
         pubmed_dir = "data/scraped_data/pubmed"
@@ -667,30 +686,11 @@ def generate_embeddings():
             print("💡 Run PubMed scraping (option 1) first to generate data")
             return
         
-        print(f"📚 Found {len(pubmed_files)} PubMed data files:")
+        print(f"\n📚 Found {len(pubmed_files)} PubMed data files:")
         for file in pubmed_files:
             file_path = os.path.join(pubmed_dir, file)
             file_size = os.path.getsize(file_path)
             print(f"   - {file} ({file_size:,} bytes)")
-        
-        # Check if Google API key is available
-        keys_path = "config/keys.json"
-        if not os.path.exists(keys_path):
-            print("❌ No API keys found at config/keys.json")
-            print("💡 Please ensure your Google API key is configured")
-            return
-        
-        # Load API keys
-        with open(keys_path, 'r') as f:
-            keys = json.load(f)
-        
-        google_api_key = keys.get("GOOGLE_API_KEY")
-        if not google_api_key:
-            print("❌ GOOGLE_API_KEY not found in keys.json")
-            print("💡 Please add your Google API key to config/keys.json")
-            return
-        
-        print("✅ Google API key found")
         
         # Ask user which file to process
         print("\n📋 Available PubMed files:")

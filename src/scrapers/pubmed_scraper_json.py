@@ -1681,42 +1681,22 @@ def get_embedding_session():
         _embedding_session.mount('https://', adapter)
     return _embedding_session
 
-def get_google_embedding(text, api_key, retry_count=0):
-    """Get Google embedding with optimized network settings and retry logic."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
-    headers = {
-        "Content-Type": "application/json",
-        "Connection": "keep-alive",  # Enable connection reuse
-        "User-Agent": "PubMed-Scraper/1.0"  # Identify our requests
-    }
-    data = {"model": "models/text-embedding-004", "content": {"parts": [{"text": text}]}}
+def get_google_embedding(text, api_key=None, retry_count=0):
+    """
+    Get embedding using unified EmbeddingsClient.
+    This function maintains backward compatibility while using the new abstraction.
+    """
+    from src.core.embeddings_client import EmbeddingsClient
     
     # Add rate limiting delay
     if config.get("rate_limit_delay", 0) > 0:
         time.sleep(config.get("rate_limit_delay", 0))
     
     try:
-        # Use session for connection pooling
-        session = get_embedding_session()
-        response = session.post(
-            url, 
-            headers=headers, 
-            json=data, 
-            timeout=config.get("request_timeout", 15),  # Reduced timeout
-            stream=False  # Don't stream for small responses
-        )
-        response.raise_for_status()
-        return response.json()["embedding"]["values"]
+        # Use unified embeddings client
+        embeddings_client = EmbeddingsClient()
+        return embeddings_client.get_embedding(text, retry_count)
         
-    except requests.exceptions.Timeout:
-        if retry_count < 2:  # Max 2 retries for timeout
-            print(f"⚠️  Timeout for embedding, retrying ({retry_count + 1}/2)...")
-            time.sleep(1)  # Brief delay before retry
-            return get_google_embedding(text, api_key, retry_count + 1)
-        else:
-            print(f"❌ Max retries reached for timeout")
-            return None
-            
     except requests.exceptions.RequestException as e:
         if "429" in str(e) and retry_count < 3:  # Rate limit retry
             wait_time = (2 ** retry_count) * 5  # Exponential backoff: 5s, 10s, 20s

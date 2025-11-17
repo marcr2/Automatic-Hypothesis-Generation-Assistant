@@ -11,3 +11,7 @@ paperscraper>=0.2.0
 matplotlib>=3.7.0
 google-generativeai>=0.8.0
 setuptools
+
+# Distributed system support
+httpx>=0.27.0
+openai>=1.0.0
