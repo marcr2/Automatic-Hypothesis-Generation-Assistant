@@ -6,20 +6,23 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from src.ai.optimized_prompts import get_optimized_meta_prompt, get_optimized_hypothesis_prompt, get_optimized_critique_prompt
 
-UBR5_KEYWORDS = [
+RESEARCH_KEYWORDS = [
     r"\bUBR5\b", r"\bUbr5\b", r"ubiquitin.*ligase", r"EDD protein", r"EDD1", r"EDD-1", r"EDD/UBR5"
 ]
 
-def is_ubr5_related(text: str) -> bool:
+def is_research_related(text: str) -> bool:
     """
-    Returns True if the text is related to UBR-5 based on keyword matching.
+    Returns True if the text is related to research focus based on keyword matching.
     """
     if not isinstance(text, str):
         return False
-    for kw in UBR5_KEYWORDS:
+    for kw in RESEARCH_KEYWORDS:
         if re.search(kw, text, re.IGNORECASE):
             return True
     return False
+
+# Backward compatibility alias
+is_ubr5_related = is_research_related
 
 def validate_hypothesis_format(hypothesis: str) -> tuple[bool, str]:
     """
@@ -439,9 +442,9 @@ def get_lab_config():
     temp_config_file = "config/temp_lab_config.json"
     config_file = "lab_config.json"
     default_config = {
-        "lab_name": "Dr. Xiaojing Ma",
-        "institution": "Weill Cornell Medicine",
-        "research_focus": "UBR5, cancer immunology, protein ubiquitination, mechanistic and therapeutic hypotheses"
+        "lab_name": "Research Lab",
+        "institution": "Research Institution",
+        "research_focus": "Biomedical research, disease mechanisms, therapeutic hypotheses"
     }
     
     # Try temporary config first (GUI override)
@@ -467,18 +470,18 @@ def get_lab_config():
 def get_lab_goals():
     """Get lab goals based on current configuration"""
     config = get_lab_config()
-    lab_name = config.get("lab_name", "Dr. Xiaojing Ma")
-    institution = config.get("institution", "Weill Cornell Medicine")
-    research_focus = config.get("research_focus", "UBR5, cancer immunology, protein ubiquitination, mechanistic and therapeutic hypotheses")
+    lab_name = config.get("lab_name", "Research Lab")
+    institution = config.get("institution", "Research Institution")
+    research_focus = config.get("research_focus", "Biomedical research, disease mechanisms, therapeutic hypotheses")
     
-    return f"{research_focus}, {lab_name}'s lab at {institution}. The lab focuses on post-transcriptional regulation, ubiquitination, cancer models, and translational control."
+    return f"{research_focus}, {lab_name}'s lab at {institution}."
 
 # Default LAB_GOALS for backward compatibility
 LAB_GOALS = get_lab_goals()
 
 class HypothesisCritic:
     """
-    Critiques scientific hypotheses in the context of UBR-5 and Dr. Xiaojing Ma's lab using provided literature.
+    Critiques scientific hypotheses in the context of configured research focus using provided literature.
     Uses LLMClient for critique (supports Gemini and local LLMs).
     Supports customizable critique prompts via configuration file.
     """

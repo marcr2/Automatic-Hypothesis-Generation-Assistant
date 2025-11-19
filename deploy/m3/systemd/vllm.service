@@ -1,0 +1,41 @@
+[Unit]
+Description=vLLM OpenAI-Compatible LLM Server
+Documentation=https://docs.vllm.ai
+After=network.target
+
+[Service]
+Type=simple
+User=%USER%
+Group=%USER%
+WorkingDirectory=/home/user/AHGA
+
+# Environment variables
+Environment="PATH=/home/user/AHGA/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="HF_HOME=/home/user/models/huggingface_cache"
+
+# vLLM server command
+ExecStart=/home/user/AHGA/.venv/bin/python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Meta-Llama-3.1-70B-Instruct \
+  --host 0.0.0.0 \
+  --port 11434 \
+  --dtype auto \
+  --gpu-memory-utilization 0.9 \
+  --max-model-len 8192 \
+  --tensor-parallel-size 1
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/home/user/AHGA/data/logs/vllm.log
+StandardError=append:/home/user/AHGA/data/logs/vllm_error.log
+
+# Resource limits (optional)
+# LimitNOFILE=65536
+# LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target
+

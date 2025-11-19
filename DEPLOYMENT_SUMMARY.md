@@ -1,3 +1,4 @@
+
 # Ubuntu Server Deployment - Implementation Summary
 
 ## Overview
@@ -10,17 +11,16 @@ Successfully implemented complete Ubuntu server infrastructure and CLI for the A
 
 **Files Created:**
 - `env.example` - Environment variable template
-- `config/server.yaml` - Server settings and paths
-- `config/processing.yaml` - Performance tuning
-- `config/search.yaml` - Search keywords
-- `config/critique.yaml` - Hypothesis evaluation
-- `config/network.yaml` - Network configuration
+- `config/LLM_config.json` - LLM and embeddings configuration
+- `config/search_keywords_config.json` - Search keywords
+- `config/critique_config.json` - Hypothesis evaluation
+- `config/network_config.json` - Network configuration
 - `src/core/config_loader.py` - Centralized configuration loader
 
 **Key Features:**
 - Environment-based secrets management (.env)
-- YAML-based application configuration
-- Backward compatibility with legacy JSON configs
+- JSON-based application configuration
+- Centralized configuration management
 - Validation and error handling
 - Easy access via `get_config()` function
 
@@ -341,7 +341,7 @@ The project now supports both Windows (GUI) and Ubuntu (CLI):
 
 **Migration Path:**
 1. Copy `config/keys.json` values to `.env`
-2. Copy keyword settings to `config/search.yaml`
+2. Configure keyword settings in `config/search_keywords_config.json`
 3. Test with `python -m src.cli.main config validate`
 4. Use CLI commands going forward
 

@@ -1811,17 +1811,17 @@ def get_search_terms():
                 return terms
         except Exception as e:
             print(f"⚠️  Could not load custom keywords: {e}")
-            print("📋 Falling back to default UBR5 keywords")
+            print("📋 Falling back to default biomedical keywords")
     
-    # Default UBR5 search terms if no custom keywords found
+    # Default biomedical search terms if no custom keywords found
     terms = [
-        "ubr5",
-        "UBR5", 
-        "ubr-5",
-        "UBR-5"
+        "biomedical research",
+        "disease mechanisms",
+        "molecular biology",
+        "therapeutic targets"
     ]
     
-    print(f"📋 Using default UBR5 search terms: {', '.join(terms)}")
+    print(f"📋 Using default biomedical search terms: {', '.join(terms)}")
     return list(terms)
 
 def get_max_results_from_user():

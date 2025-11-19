@@ -357,8 +357,8 @@ Settings are loaded in this order (later overrides earlier):
 ### Custom Rate Limiting
 
 Modify rate limiting in scraper configuration files:
-- `config/processing.yaml`
-- Individual scraper scripts
+- Individual scraper scripts (hardcoded configurations)
+- Can be customized per scraper as needed
 
 ### Multiple ChromaDB Collections
 

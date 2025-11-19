@@ -1,0 +1,30 @@
+{
+  "machine_name": "m3",
+  "execution_mode": "distributed",
+  "llm": {
+    "provider": "local",
+    "api_base": "http://localhost:11434/v1",
+    "model_name": "meta-llama/Meta-Llama-3.1-70B-Instruct"
+  },
+  "embeddings": {
+    "provider": "google"
+  },
+  "chromadb": {
+    "host": "MYSTERY_IP",
+    "port": 8000
+  },
+  "paths": {
+    "data_root": "/home/user/AHGA/data",
+    "embeddings": "/home/user/AHGA/data/embeddings",
+    "scraped_data": "/home/user/AHGA/data/scraped_data",
+    "logs": "/home/user/AHGA/data/logs",
+    "models": "/home/user/models",
+    "temp": "/home/user/workspace/temp"
+  },
+  "resources": {
+    "gpu_memory_utilization": 0.9,
+    "max_model_len": 8192,
+    "tensor_parallel_size": 1
+  }
+}
+

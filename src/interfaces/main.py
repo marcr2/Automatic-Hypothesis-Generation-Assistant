@@ -38,7 +38,7 @@ def parse_unified_keywords(keywords_str):
     
     if not keywords_str or not keywords_str.strip():
         # Final fallback to default keywords
-        return ["UBR5", "ubr-5", "ubr5", "tumor immunology", "protein degradation"]
+        return ["biomedical research", "disease mechanisms", "molecular biology", "therapeutic targets"]
     
     # Parse comma-separated keywords and clean them
     keywords = [term.strip() for term in keywords_str.split(',') if term.strip()]
@@ -228,7 +228,7 @@ def clear_debug_logs():
     log_files = [
         "data/logs/terminal_debug.log",
         "data/logs/paper_processing.log", 
-        "data/logs/ubr5_api_scraping.log"
+        "data/logs/semantic_scholar_scraping.log"
     ]
     
     existing_files = [f for f in log_files if os.path.exists(f)]
@@ -429,7 +429,7 @@ def run_full_scraper():
         return
     
     success_count = 0
-    total_sources = 3  # PubMed + xrvix + UBR5
+    total_sources = 3  # PubMed + xrvix + Semantic Scholar
     
     # Step 1: Process PubMed (journal articles)
     print("\n📚 Step 1/3: Processing PubMed (Journal Articles)...")
@@ -489,18 +489,18 @@ def run_full_scraper():
     except Exception as e:
         print(f"❌ xrvix processing failed: {e}")
     
-    # Step 3: Process UBR5 (Semantic Scholar)
-    print("\n🔬 Step 3/3: Processing UBR5 (Semantic Scholar)...")
+    # Step 3: Process Semantic Scholar
+    print("\n🔬 Step 3/3: Processing Semantic Scholar...")
     try:
         semantic_scraper = SemanticScholarScraper()
-        # Set custom keywords for UBR5 scraper
+        # Set custom keywords for Semantic Scholar scraper
         semantic_scraper.search_keywords = [keyword.strip() for keyword in semantic_keywords.split(',')]
         print(f"   Using keywords: {semantic_keywords}")
         semantic_scraper.run_complete_scraping()
-        print("✅ UBR5 processing completed successfully!")
+        print("✅ Semantic Scholar processing completed successfully!")
         success_count += 1
     except Exception as e:
-        print(f"❌ UBR5 processing failed: {e}")
+        print(f"❌ Semantic Scholar processing failed: {e}")
     
     # Summary
     print(f"\n🎉 Full scraper completed!")
@@ -524,7 +524,7 @@ def run_journal_articles_only():
         return
     
     success_count = 0
-    total_sources = 2  # PubMed + UBR5
+    total_sources = 2  # PubMed + Semantic Scholar
     
     # Step 1: Process PubMed
     print("\n📚 Step 1/2: Processing PubMed...")
@@ -538,8 +538,8 @@ def run_journal_articles_only():
     except Exception as e:
         print(f"❌ PubMed processing failed: {e}")
     
-    # Step 2: Process UBR5 (Semantic Scholar)
-    print("\n🔬 Step 2/2: Processing UBR5 (Semantic Scholar)...")
+    # Step 2: Process Semantic Scholar
+    print("\n🔬 Step 2/2: Processing Semantic Scholar...")
     try:
         semantic_scraper = SemanticScholarScraper()
         # Use unified keyword parsing to ensure consistency with PubMed
@@ -547,10 +547,10 @@ def run_journal_articles_only():
         semantic_scraper.search_keywords = search_keywords
         print(f"   Using keywords: {', '.join(search_keywords)}")
         semantic_scraper.run_complete_scraping()
-        print("✅ UBR5 processing completed successfully!")
+        print("✅ Semantic Scholar processing completed successfully!")
         success_count += 1
     except Exception as e:
-        print(f"❌ UBR5 processing failed: {e}")
+        print(f"❌ Semantic Scholar processing failed: {e}")
     
     # Summary
     print(f"\n🎉 Journal articles scraper completed!")
@@ -952,18 +952,18 @@ def show_data_status():
     else:
         print("   ❌ Not available")
     
-    # Check UBR5 API data
-    print("\n🔬 UBR5 API Data (Semantic Scholar):")
-    ubr5_path = "data/embeddings/xrvix_embeddings/ubr5_api"
-    if os.path.exists(ubr5_path):
+    # Check Semantic Scholar API data
+    print("\n🔬 Semantic Scholar API Data:")
+    semantic_path = "data/embeddings/semantic_scholar"
+    if os.path.exists(semantic_path):
         try:
-            paper_files = [f for f in os.listdir(ubr5_path) if f.endswith('.json') and f != 'metadata.json']
-            metadata_file = os.path.join(ubr5_path, "metadata.json")
+            paper_files = [f for f in os.listdir(semantic_path) if f.endswith('.json') and f != 'metadata.json']
+            metadata_file = os.path.join(semantic_path, "metadata.json")
             if os.path.exists(metadata_file):
                 with open(metadata_file, 'r') as f:
-                    ubr5_data = json.load(f)
-                    ubr5_count = ubr5_data.get('total_papers', 0)
-                    print(f"   ✅ Available: {ubr5_count} papers")
+                    semantic_data = json.load(f)
+                    semantic_count = semantic_data.get('total_papers', 0)
+                    print(f"   ✅ Available: {semantic_count} papers")
             else:
                 print(f"   ✅ Available: {len(paper_files)} individual paper files")
         except Exception as e:
@@ -1034,9 +1034,9 @@ def generate_hypotheses():
     except Exception as e:
         print(f"❌ Failed to launch hypothesis generation system: {e}")
 
-def test_run_ubr5():
-    """Run a test with UBR5 tumor immunology focus."""
-    print("\n🧪 Test Run: UBR5 Tumor Immunology")
+def test_run_research():
+    """Run a test with configured research focus."""
+    print("\n🧪 Test Run: Biomedical Research")
     print("="*60)
     
     try:
@@ -1161,7 +1161,7 @@ def main():
                 execute_with_debug_logging(generate_hypotheses)
                 
             elif choice == 11:
-                execute_with_debug_logging(test_run_ubr5)
+                execute_with_debug_logging(test_run_research)
                 
             elif choice == 12:
                 toggle_debug_logging()

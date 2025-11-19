@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-AHG-UBR5 Research Processor - GUI Main Application
-AI-Powered Scientific Hypothesis Generator for UBR5 Protein Research
+AHGA Research Processor - GUI Main Application
+AI-Powered Scientific Hypothesis Generator for Biomedical Research
 """
 
 import tkinter as tk
@@ -40,7 +40,7 @@ def parse_unified_keywords(keywords_str):
     
     if not keywords_str or not keywords_str.strip():
         # Final fallback to default keywords
-        return ["UBR5", "ubr-5", "ubr5", "tumor immunology", "protein degradation"]
+        return ["biomedical research", "disease mechanisms", "molecular biology", "therapeutic targets"]
     
     # Parse comma-separated keywords and clean them
     keywords = [term.strip() for term in keywords_str.split(',') if term.strip()]
@@ -151,12 +151,12 @@ class RealTimeProgressWrapper:
             "SEARCH SUMMARY",
             "Success rate:",
             "Total papers collected:",
-            # UBR5/Semantic Scholar patterns
+            # Semantic Scholar patterns
             "Searching Semantic Scholar for keyword:",
             "Added",
             "new unique papers",
             "Collected",
-            "unique UBR5-related papers",
+            "unique papers matching search keywords",
             "Processing keyword:",
             "Semantic Scholar API",
             "Rate limit:"
@@ -239,12 +239,12 @@ class ScraperProgressWrapper:
             self.update_progress(f"❌ PubMed search failed: {e}")
             return []
             
-    def run_ubr5_with_progress(self, keywords):
-        """Run UBR5 scraper with real-time progress monitoring."""
+    def run_semantic_scholar_with_progress(self, keywords):
+        """Run Semantic Scholar scraper with real-time progress monitoring."""
         try:
-            self.update_progress("🔍 Starting UBR5 Semantic Scholar search...")
+            self.update_progress("🔍 Starting Semantic Scholar search...")
             
-            # Create UBR5 scraper
+            # Create Semantic Scholar scraper
             semantic_scraper = SemanticScholarScraper()
             # Use unified keyword parsing to ensure consistency with PubMed
             search_keywords = parse_unified_keywords(keywords)
@@ -265,14 +265,14 @@ class ScraperProgressWrapper:
                 # Run the scraper with real-time progress updates
                 semantic_scraper.run_complete_scraping()
                 
-                self.update_progress("✅ UBR5 Semantic Scholar search completed successfully!")
+                self.update_progress("✅ Semantic Scholar search completed successfully!")
                 
             finally:
                 # Restore stdout
                 sys.stdout = old_stdout
                 
         except Exception as e:
-            self.update_progress(f"❌ UBR5 search failed: {e}")
+            self.update_progress(f"❌ Semantic Scholar search failed: {e}")
             
     def run_xrvix_with_progress(self):
         """Run xrvix scraper with progress monitoring."""
@@ -480,7 +480,7 @@ class AIResearchProcessorGUI:
         desc_text = """This option runs a complete scraping process including:
 • PubMed (Journal Articles) - Custom keywords
 • xrvix (Preprints) - Biorxiv, Medrxiv (no keywords needed)
-• UBR5 API (Semantic Scholar) - Same keywords as PubMed"""
+• Semantic Scholar API - Same keywords as PubMed"""
         
         desc_label = ttk.Label(parent, text=desc_text, justify=tk.LEFT)
         desc_label.pack(pady=(0, 20))
@@ -560,7 +560,7 @@ Choose to scrape both sources together or individual sources separately."""
         ttk.Radiobutton(source_frame, text="🔬 PubMed Only (Journal Articles)", 
                        variable=self.journal_source_var, value="pubmed").pack(anchor=tk.W, pady=2)
         
-        ttk.Radiobutton(source_frame, text="🧠 Semantic Scholar Only (UBR5 API)", 
+        ttk.Radiobutton(source_frame, text="🧠 Semantic Scholar API", 
                        variable=self.journal_source_var, value="semantic").pack(anchor=tk.W, pady=2)
         
         # Keywords configuration
@@ -819,7 +819,7 @@ Use this option to regenerate embeddings if needed."""
 The system will load embeddings from:
 • PubMed embeddings
 • xrvix embeddings (biorxiv, medrxiv)
-• UBR5 API embeddings"""
+• Semantic Scholar API embeddings"""
         
         desc_label = ttk.Label(parent, text=desc_text, justify=tk.LEFT)
         desc_label.pack(pady=(0, 20))
@@ -1351,7 +1351,7 @@ and provides recommendations for next steps."""
         
         # PubMed Keywords
         ttk.Label(keywords_frame, text="PubMed Keywords:").grid(row=0, column=0, sticky=tk.NW, pady=2)
-        self.pubmed_keywords_var = tk.StringVar(value="UBR5,ubr-5,ubr5,tumor immunology,protein degradation")
+        self.pubmed_keywords_var = tk.StringVar(value="biomedical research,disease mechanisms,molecular biology,therapeutic targets")
         pubmed_keywords_text = tk.Text(keywords_frame, height=3, width=50)
         pubmed_keywords_text.grid(row=0, column=1, sticky=tk.W, padx=(10, 0), pady=2)
         pubmed_keywords_text.insert(tk.END, self.pubmed_keywords_var.get())
@@ -1359,7 +1359,7 @@ and provides recommendations for next steps."""
         
         # Semantic Scholar Keywords
         ttk.Label(keywords_frame, text="Semantic Scholar Keywords:").grid(row=1, column=0, sticky=tk.NW, pady=2)
-        self.semantic_keywords_var = tk.StringVar(value="UBR5,ubr-5,ubr5,tumor immunology,protein degradation")
+        self.semantic_keywords_var = tk.StringVar(value="biomedical research,disease mechanisms,molecular biology,therapeutic targets")
         semantic_keywords_text = tk.Text(keywords_frame, height=3, width=50)
         semantic_keywords_text.grid(row=1, column=1, sticky=tk.W, padx=(10, 0), pady=2)
         semantic_keywords_text.insert(tk.END, self.semantic_keywords_var.get())
@@ -1527,24 +1527,18 @@ if __name__ == "__main__":
             f.write(config_content)
     
     def save_ubr5_scraper_config(self):
-        """Save UBR5 scraper configuration to ubr5_scraper_config.py."""
+        """Save Semantic Scholar scraper configuration."""
         config_content = f'''"""
-Configuration file for the UBR5 API scraper.
+Configuration file for the Semantic Scholar API scraper.
 Contains all configurable parameters for paper collection and processing.
 """
 
-# --- UBR5 SEARCH CONFIGURATION ---
-UBR5_SEARCH_TERMS = [
-    "UBR5", "ubr5", "Ubr5", "ubiquitin protein ligase E3 component n-recognin 5",
-    "EDD1", "edd1", "Edd1", "E3 ubiquitin-protein ligase UBR5",
-    "ubiquitin ligase UBR5", "UBR5 function", "UBR5 regulation", 
-    "UBR5 expression", "UBR5 mutation", "UBR5 activity", "UBR5 mechanism",
-    "UBR5 cancer", "UBR5 disease", "UBR5 pathway", "UBR5 oncology",
-    "UBR5 tumor", "UBR5 metastasis", "UBR5 interaction", "UBR5 binding",
-    "UBR5 complex", "UBR5 protein-protein", "UBR5 substrate",
-    "UBR5 ubiquitination", "UBR5 degradation", "UBR5 signaling",
-    "UBR5 transcription", "UBR5 DNA repair", "UBR5 tissue",
-    "UBR5 cell line", "UBR5 organ", "UBR5 development"
+# --- SEARCH CONFIGURATION ---
+# Search terms are loaded from config/search_keywords_config.json
+# Default generic biomedical research terms as fallback
+DEFAULT_SEARCH_TERMS = [
+    "biomedical research", "disease mechanisms", "molecular biology",
+    "therapeutic targets", "precision medicine", "translational research"
 ]
 
 # --- API CONFIGURATION ---
@@ -2674,8 +2668,8 @@ STEP 5: Analyze Results
             self.log_message(self.full_scraper_output, "Step 3/3: Processing UBR5 (Semantic Scholar)...")
             try:
                 self.log_message(self.full_scraper_output, f"Using keywords: {self.full_scraper_keywords_var.get()}")
-                progress_wrapper.run_ubr5_with_progress(self.full_scraper_keywords_var.get())
-                self.log_message(self.full_scraper_output, "✅ UBR5 processing completed successfully!")
+                progress_wrapper.run_semantic_scholar_with_progress(self.full_scraper_keywords_var.get())
+                self.log_message(self.full_scraper_output, "✅ Semantic Scholar processing completed successfully!")
                 success_count += 1
             except Exception as e:
                 self.log_message(self.full_scraper_output, f"❌ UBR5 processing failed: {e}")
@@ -2757,7 +2751,7 @@ STEP 5: Analyze Results
                 self.log_message(self.journal_output, f"Step {step_num}: Processing Semantic Scholar...")
                 try:
                     self.log_message(self.journal_output, f"Using keywords: {self.journal_keywords_var.get()}")
-                    progress_wrapper.run_ubr5_with_progress(self.journal_keywords_var.get())
+                    progress_wrapper.run_semantic_scholar_with_progress(self.journal_keywords_var.get())
                     self.log_message(self.journal_output, "✅ Semantic Scholar processing completed successfully!")
                     success_count += 1
                 except Exception as e:

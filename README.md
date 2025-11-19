@@ -81,11 +81,10 @@ AI-Research-Processor/
 ├── scripts/                      # Command-line tools
 │   └── analyze_citations.py     # Citation analysis script
 ├── config/                       # Configuration files
-│   ├── server.yaml               # Server settings (paths, logging)
-│   ├── processing.yaml           # Performance tuning
-│   ├── search.yaml               # Search keywords
-│   ├── critique.yaml             # Hypothesis evaluation
-│   ├── network.yaml              # Network settings
+│   ├── LLM_config.json           # LLM and embeddings configuration
+│   ├── search_keywords_config.json # Search keywords
+│   ├── critique_config.json      # Hypothesis evaluation
+│   ├── network_config.json       # Network settings
 │   └── keys.json                 # Legacy API keys (use .env instead)
 ├── examples/                     # Example automation scripts
 │   ├── batch_scrape.sh           # Batch scraping
@@ -505,9 +504,57 @@ The `examples/` directory contains automation scripts:
 - `daily_update.sh` - Daily data updates (cron-ready)
 - `full_pipeline.sh` - Complete workflow automation
 
+## 🚀 Distributed Deployment
+
+For high-performance setups with multiple machines, the system supports distributed deployment:
+
+### Architecture
+
+- **M3 Machine** (198GB VRAM, 1.7TB storage): Main processing, vLLM server, data storage
+- **Mystery Machine** (100GB+ RAM): ChromaDB vector database server
+
+### Quick Setup
+
+```bash
+# On Mystery machine (ChromaDB server)
+bash deploy/mystery/install_mystery.sh
+
+# On M3 machine (main application)
+bash deploy/m3/install_m3.sh
+```
+
+### Features
+
+- **Machine Profiles**: Auto-detect or specify machine role (m3, mystery)
+- **Configurable ChromaDB Port**: Set custom port during installation
+- **Optimized Data Allocation**: Vectors on RAM-heavy machine, embeddings on storage-heavy machine
+- **Systemd Services**: Auto-start services on boot
+- **Backup & Sync Scripts**: Built-in data management tools
+
+### Documentation
+
+- **[Deployment Guide](deploy/README.md)** - Complete distributed setup guide
+- **[M3 Setup](deploy/m3/README_M3.md)** - M3 machine configuration
+- **[Mystery Setup](deploy/mystery/README_MYSTERY.md)** - Mystery machine configuration
+- **[Configuration](CONFIG_GUIDE.md)** - Distributed mode configuration
+
+### CLI with Profiles
+
+```bash
+# Use machine profile
+python -m src.cli.main --profile m3 config show
+
+# Test connectivity
+python -m src.cli.main config test-connectivity
+
+# Run validation
+python scripts/test_distributed_setup.py
+```
+
 ## 📞 Support
 
 For questions, issues, or contributions:
+- **Distributed Setup**: Check [deploy/README.md](deploy/README.md) and machine-specific guides
 - **Ubuntu/CLI**: Check [INSTALL_UBUNTU.md](INSTALL_UBUNTU.md), [CLI_GUIDE.md](CLI_GUIDE.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Windows/GUI**: Check the Tutorial tab in the GUI for comprehensive guidance
 - **General**: Review log files in `data/logs/` for error details

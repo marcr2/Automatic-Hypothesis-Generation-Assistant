@@ -1,0 +1,110 @@
+# Docker Compose configuration for AI Research Processor Web Application
+# Optimized for M3 machine deployment
+
+version: '3.8'
+
+services:
+  # Frontend - Next.js Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_WS_URL: ws://localhost:8000
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_WS_URL=ws://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Backend - FastAPI Application
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./temp_sessions:/app/temp_sessions
+      - ./logs:/app/logs
+    environment:
+      # Server Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - SESSION_TIMEOUT_HOURS=2
+      - CLEANUP_INTERVAL_MINUTES=30
+      
+      # CORS Settings
+      - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000
+      
+      # Distributed ChromaDB (Mystery Machine)
+      - EXECUTION_MODE=distributed
+      - CHROMA_HOST=${CHROMA_HOST:-mystery_ip}
+      - CHROMA_PORT=${CHROMA_PORT:-8000}
+      
+      # Local vLLM on M3 (accessible via host.docker.internal)
+      - LLM_PROVIDER=${LLM_PROVIDER:-local}
+      - LLM_API_BASE=${LLM_API_BASE:-http://host.docker.internal:11434/v1}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-llama3}
+      
+      # Embeddings
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-local}
+      - EMBEDDINGS_API_BASE=${EMBEDDINGS_API_BASE:-http://host.docker.internal:11434/v1}
+      - EMBEDDINGS_MODEL_NAME=${EMBEDDINGS_MODEL_NAME:-nomic-embed-text}
+      
+      # Or use Gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      
+      # Rate Limiting
+      - MAX_REQUESTS_PER_MINUTE=10
+      - MAX_CONCURRENT_GENERATIONS=3
+      
+      # Storage Paths
+      - EMBEDDINGS_BASE_PATH=/app/data/embeddings
+      - TEMP_SESSIONS_PATH=/app/temp_sessions
+      - LOGS_DB_PATH=/app/logs/sessions.db
+      - CONFIG_PATH=/app/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Background Cleanup Service
+  cleanup:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python -c "import asyncio; from backend.services.cleanup_service import CleanupService; asyncio.run(CleanupService().start()); asyncio.get_event_loop().run_forever()"
+    volumes:
+      - ./temp_sessions:/app/temp_sessions
+      - ./logs:/app/logs
+    environment:
+      - SESSION_TIMEOUT_HOURS=2
+      - CLEANUP_INTERVAL_MINUTES=30
+      - TEMP_SESSIONS_PATH=/app/temp_sessions
+      - LOGS_DB_PATH=/app/logs/sessions.db
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  temp_sessions:
+  logs:
+

@@ -2893,36 +2893,41 @@ class EnhancedRAGQuery:
         import re
         from collections import Counter
 
-        # Extract UBR-5 related terms
-        ubr5_terms = re.findall(r'\b(?:UBR5?|ubiquitin|ligase|protein|E3|ubiquitination|degradation|regulation|pathway|signaling|cancer|immunology|immune|response|activation|inhibition|expression|function|mechanism|target|therapeutic|drug|treatment|therapy)\b', package_text, re.IGNORECASE)
-        term_counts = Counter(ubr5_terms)
+        # Extract biomedical research-related terms
+        research_terms = re.findall(r'\b(?:protein|regulation|pathway|signaling|cancer|disease|immune|response|activation|inhibition|expression|function|mechanism|target|therapeutic|drug|treatment|therapy|molecular|cellular|biological)\b', package_text, re.IGNORECASE)
+        term_counts = Counter(research_terms)
+
+        # Get lab focus from config
+        lab_config = get_lab_config()
+        research_focus = lab_config.get("research_focus", "biomedical research")
 
         # Generate simple hypotheses based on common patterns
         hypotheses = []
 
-        # Hypothesis 1: UBR5 regulation
+        # Hypothesis 1: Regulation and expression
         if any(term in term_counts for term in ['regulation', 'expression', 'function']):
-            hypotheses.append("UBR5 expression and function are regulated by specific signaling pathways in immune cells, affecting immune response and cancer progression.")
+            hypotheses.append(f"Key molecular regulators in {research_focus} are influenced by specific signaling pathways, affecting disease progression and therapeutic response.")
 
         # Hypothesis 2: Therapeutic targeting
         if any(term in term_counts for term in ['therapeutic', 'drug', 'treatment', 'target']):
-            hypotheses.append("UBR5 represents a novel therapeutic target for cancer immunotherapy, with potential for drug development and clinical applications.")
+            hypotheses.append(f"Novel therapeutic targets identified in {research_focus} show potential for drug development and clinical applications.")
 
-        # Hypothesis 3: Immune response
-        if any(term in term_counts for term in ['immune', 'response', 'activation', 'immunology']):
-            hypotheses.append("UBR5 plays a critical role in regulating immune cell activation and response, influencing cancer immunosurveillance and immunotherapy efficacy.")
+        # Hypothesis 3: Immune or disease response
+        if any(term in term_counts for term in ['immune', 'response', 'activation', 'disease']):
+            hypotheses.append(f"Critical molecular mechanisms in {research_focus} regulate cellular responses and influence disease outcomes.")
 
-        # Hypothesis 4: Ubiquitination pathway
-        if any(term in term_counts for term in ['ubiquitin', 'ligase', 'ubiquitination', 'degradation']):
-            hypotheses.append("UBR5-mediated ubiquitination regulates key proteins in immune signaling pathways, affecting cell fate decisions and immune function.")
+        # Hypothesis 4: Molecular pathway
+        if any(term in term_counts for term in ['pathway', 'signaling', 'molecular']):
+            hypotheses.append(f"Key signaling pathways in {research_focus} regulate important cellular processes affecting disease progression.")
 
-        # Hypothesis 5: Cancer mechanism
-        if any(term in term_counts for term in ['cancer', 'mechanism', 'pathway', 'signaling']):
-            hypotheses.append("UBR5 functions as a key regulator in cancer cell signaling pathways, with implications for tumor progression and therapeutic resistance.")
+        # Hypothesis 5: Disease mechanism
+        if any(term in term_counts for term in ['cancer', 'mechanism', 'disease', 'biological']):
+            hypotheses.append(f"Molecular mechanisms in {research_focus} play important roles in disease development with implications for therapeutic intervention.")
 
         # Fill remaining slots with generic hypotheses if needed
         while len(hypotheses) < n:
-            hypotheses.append(f"UBR5 may have additional roles in cellular processes related to {list(term_counts.keys())[:3] if term_counts else 'protein regulation'}.")
+            top_terms = list(term_counts.keys())[:3] if term_counts else ['molecular regulation']
+            hypotheses.append(f"Additional molecular mechanisms in {research_focus} may involve processes related to {', '.join(top_terms)}.")
 
         print(f"\n🏆 Generated {len(hypotheses)} Hypotheses (Offline Mode):")
         print("=" * 80)
@@ -3763,7 +3768,7 @@ class EnhancedRAGQuery:
                 if "prompt" in self.current_package and self.current_package["prompt"]:
                     test_query = self.current_package["prompt"]
                 else:
-                    test_query = "UBR5 cancer"
+                    test_query = "biomedical research"
                 self.test_lab_paper_detection(test_query)
             elif query.lower().startswith('diverse '):
                 try:
@@ -5192,7 +5197,7 @@ class EnhancedRAGQuery:
             else:
                 print("❌ Invalid ratio. Must be 'auto' or between 0.0 and 1.0.")
 
-    def test_lab_paper_detection(self, query="UBR5 cancer"):
+    def test_lab_paper_detection(self, query="biomedical research"):
         """Test function to debug lab paper detection."""
         print(f"🔬 Testing lab paper detection for query: '{query}'")
         

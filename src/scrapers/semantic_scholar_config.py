@@ -4,53 +4,12 @@ Contains all configurable parameters for paper collection and processing.
 """
 
 # --- DEFAULT SEARCH CONFIGURATION ---
+# Default terms are placeholders - should be configured via search_keywords_config.json
 DEFAULT_SEARCH_TERMS = [
-    # Direct UBR5 searches
-    "UBR5",
-    "ubr5", 
-    "Ubr5",
-    "ubiquitin protein ligase E3 component n-recognin 5",
-    "EDD1",
-    "edd1",
-    "Edd1",
-    "E3 ubiquitin-protein ligase UBR5",
-    "ubiquitin ligase UBR5",
-    
-    # Functional searches
-    "UBR5 function",
-    "UBR5 regulation", 
-    "UBR5 expression",
-    "UBR5 mutation",
-    "UBR5 activity",
-    "UBR5 mechanism",
-    
-    # Disease-related searches
-    "UBR5 cancer",
-    "UBR5 disease",
-    "UBR5 pathway",
-    "UBR5 oncology",
-    "UBR5 tumor",
-    "UBR5 metastasis",
-    
-    # Interaction searches
-    "UBR5 interaction",
-    "UBR5 binding",
-    "UBR5 complex",
-    "UBR5 protein-protein",
-    "UBR5 substrate",
-    
-    # Biological process searches
-    "UBR5 ubiquitination",
-    "UBR5 degradation",
-    "UBR5 signaling",
-    "UBR5 transcription",
-    "UBR5 DNA repair",
-    
-    # Tissue and cell type searches
-    "UBR5 tissue",
-    "UBR5 cell line",
-    "UBR5 organ",
-    "UBR5 development"
+    "biomedical research",
+    "disease mechanisms",
+    "molecular biology",
+    "therapeutic targets"
 ]
 
 # --- API CONFIGURATION ---
@@ -72,12 +31,7 @@ SEMANTIC_SCHOLAR_CONFIG = {
 # Google Scholar (via scholarly)
 SCHOLARLY_CONFIG = {
     "max_papers_per_query": 30,
-    "search_keywords": [
-        "ubr5",
-        "UBR5", 
-        "ubr-5",
-        "UBR-5"
-    ]
+    "search_keywords": []  # Loaded dynamically from search_keywords_config.json
 }
 
 # --- RATE LIMITING ---
@@ -124,7 +78,7 @@ STORAGE_CONFIG = {
 
 # --- CHROMADB INTEGRATION ---
 CHROMADB_CONFIG = {
-    "collection_name": "ubr5_papers",
+    "collection_name": "research_papers",  # Generic collection name
     "persist_directory": "./chroma_db",
     "metadata_fields": [
         "title", "doi", "authors", "journal", "year", "citation_count",
@@ -132,7 +86,7 @@ CHROMADB_CONFIG = {
         "publication_types", "abstract"
     ],
     "max_abstract_length": 1000,    # Limit abstract length in ChromaDB
-    "id_prefix": "ubr5_api"
+    "id_prefix": "semantic_api"
 }
 
 # --- SEARCH CONFIGURATION ---
@@ -164,7 +118,7 @@ SEARCH_CONFIG = {
 LOGGING_CONFIG = {
     "level": "INFO",
     "format": "%(asctime)s - %(levelname)s - %(message)s",
-    "file": "ubr5_api_scraping.log",
+    "file": "semantic_scholar_scraping.log",
     "console": True,
     "file_handler": True
 }
@@ -223,7 +177,7 @@ def print_config_info(profile: str = "balanced"):
     """Print current configuration information."""
     config = get_config(profile)
     
-    print("🔧 UBR5 Scraper Configuration:")
+    print("🔧 Semantic Scholar Scraper Configuration:")
     print(f"   Performance profile: {profile}")
     print(f"   Search keywords: {len(config['search_keywords'])} keywords")
     print(f"   Rate limit delay: {config['rate_limiting']['semantic_scholar_delay']}s")

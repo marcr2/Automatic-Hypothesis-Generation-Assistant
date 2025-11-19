@@ -22,9 +22,9 @@
   "critique_tone": "constructive",
   "emphasis_areas": {
     "high_priority": [
-      "UBR-5 mechanistic insights",
-      "Cancer immunology relevance",
-      "Translational potential"
+      "Mechanistic insights and molecular pathways",
+      "Relevance to research focus and disease area",
+      "Translational and clinical potential"
     ],
     "medium_priority": [
       "Experimental feasibility",
@@ -55,12 +55,12 @@
       "0": "Fundamentally flawed or incorrect"
     },
     "relevancy": {
-      "5": "Highly relevant to UBR-5 research and lab goals",
+      "5": "Highly relevant to research focus and lab goals",
       "4": "Very relevant with clear connections",
       "3": "Moderately relevant with some connections",
       "2": "Limited relevance to current research",
       "1": "Minimal relevance to lab focus",
-      "0": "Not relevant to UBR-5 or lab research"
+      "0": "Not relevant to lab research focus"
     }
   }
 }

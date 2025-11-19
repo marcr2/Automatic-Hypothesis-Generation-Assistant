@@ -1,0 +1,31 @@
+[Unit]
+Description=AHGA Research Processor Worker (Optional)
+Documentation=https://github.com/yourusername/AHGA
+After=network.target vllm.service
+Wants=vllm.service
+
+[Service]
+Type=simple
+User=%USER%
+Group=%USER%
+WorkingDirectory=/home/user/AHGA
+
+# Environment variables
+Environment="PATH=/home/user/AHGA/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="MACHINE_PROFILE=m3"
+
+# Worker command (customize based on your needs)
+# Example: Run periodic hypothesis generation
+ExecStart=/home/user/AHGA/.venv/bin/python -m src.cli.main hypothesis generate
+
+# Restart policy
+Restart=on-failure
+RestartSec=60
+
+# Logging
+StandardOutput=append:/home/user/AHGA/data/logs/worker.log
+StandardError=append:/home/user/AHGA/data/logs/worker_error.log
+
+[Install]
+WantedBy=multi-user.target
+

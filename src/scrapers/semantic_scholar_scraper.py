@@ -89,17 +89,8 @@ class SemanticScholarScraper:
         # Note: Google Scholar removed due to CAPTCHA/rate limiting issues
         # Using Semantic Scholar as primary source (reliable, no CAPTCHA)
         
-        # Default search terms (can be customized)
-        self.default_search_terms = [
-            "UBR5", "ubr5", "Ubr5",
-            "ubiquitin protein ligase E3 component n-recognin 5",
-            "EDD1", "edd1", "Edd1",
-            "E3 ubiquitin-protein ligase UBR5",
-            "ubiquitin ligase UBR5",
-            "UBR5 gene", "UBR5 protein",
-            "UBR5 mutation", "UBR5 expression",
-            "UBR5 function", "UBR5 regulation"
-        ]
+        # Default search terms (loaded from config or customizable)
+        self.default_search_terms = self._load_search_keywords()
         
         # Ensure embeddings directory exists
         os.makedirs(self.embeddings_dir, exist_ok=True)
@@ -225,6 +216,23 @@ class SemanticScholarScraper:
             logger.error("❌ Invalid JSON in config/keys.json")
         except Exception as e:
             logger.error(f"❌ Error loading API keys: {e}")
+    
+    def _load_search_keywords(self):
+        """Load search keywords from config file or return generic defaults."""
+        try:
+            # Try loading from search_keywords_config.json
+            with open("config/search_keywords_config.json", 'r') as f:
+                config_data = json.load(f)
+                semantic_keywords = config_data.get("semantic_keywords", "")
+                if semantic_keywords:
+                    keywords = [k.strip() for k in semantic_keywords.split(",")]
+                    logger.info(f"✅ Loaded {len(keywords)} search keywords from config")
+                    return keywords
+        except (FileNotFoundError, json.JSONDecodeError, Exception) as e:
+            logger.warning(f"⚠️ Could not load search keywords from config: {e}")
+        
+        # Return generic biomedical defaults
+        return ["biomedical research", "disease mechanisms", "molecular biology", "therapeutic targets"]
     
     def search_semantic_scholar(self, query: str, limit: int = 100) -> List[Dict]:
         """
@@ -726,14 +734,13 @@ class SemanticScholarScraper:
             if search_keywords:
                 logger.info(f"📋 Using keywords from config: {', '.join(search_keywords)}")
             else:
-                # Fall back to default UBR5 keywords
+                # Fall back to generic biomedical keywords
                 search_keywords = [
-                    "ubr5",
-                    "UBR5", 
-                    "ubr-5",
-                    "UBR-5"
+                    "biomedical research",
+                    "disease mechanisms",
+                    "molecular biology"
                 ]
-                logger.info(f"📋 Using default UBR5 keywords: {', '.join(search_keywords)}")
+                logger.info(f"📋 Using default biomedical keywords: {', '.join(search_keywords)}")
         
         # Validate search keywords
         if not search_keywords or not isinstance(search_keywords, list) or len(search_keywords) == 0:
@@ -814,7 +821,7 @@ class SemanticScholarScraper:
             logger.warning("⚠️ No papers were collected from any source")
             return []
             
-        logger.info(f"✅ Collected {len(all_papers)} unique UBR5-related papers")
+        logger.info(f"✅ Collected {len(all_papers)} unique papers matching search keywords")
         logger.info(f"📊 Search Summary:")
         logger.info(f"   - Keywords searched: {len(search_keywords)}")
         logger.info(f"   - Total unique papers: {len(all_papers)}")
@@ -1299,16 +1306,16 @@ class SemanticScholarScraper:
     
     def run_complete_scraping(self, max_papers: int = None):
         """
-        Run the complete UBR5 scraping pipeline.
-        Fetches as many papers as possible from all sources.
+        Run the complete paper scraping pipeline using Semantic Scholar.
+        Fetches as many papers as possible based on configured search keywords.
         
         Args:
             max_papers: Optional maximum number of papers to collect (None = no limit)
         """
         if max_papers is None:
-            logger.info("🚀 Starting complete UBR5 scraping pipeline (no paper limit - fetching all available)")
+            logger.info("🚀 Starting complete scraping pipeline (no paper limit - fetching all available)")
         else:
-            logger.info(f"🚀 Starting complete UBR5 scraping pipeline (target: {max_papers} papers)")
+            logger.info(f"🚀 Starting complete scraping pipeline (target: {max_papers} papers)")
         
         try:
             # Check if we have the required Google API key for embeddings
@@ -1338,19 +1345,19 @@ class SemanticScholarScraper:
             # Step 4: Integrate with ChromaDB
             self.integrate_with_chromadb(papers_with_embeddings)
             
-            logger.info("🎉 UBR5 scraping pipeline completed successfully!")
+            logger.info("🎉 Paper scraping pipeline completed successfully!")
             
         except Exception as e:
             logger.error(f"❌ Error in scraping pipeline: {e}")
             raise
 
 def main():
-    """Main function to run the UBR5 API scraper."""
-    print("🔍 UBR5 API Scraper - Comprehensive Paper Collection")
+    """Main function to run the Semantic Scholar API scraper."""
+    print("🔍 Semantic Scholar API Scraper - Comprehensive Paper Collection")
     print("=" * 60)
     
     # Initialize scraper
-    scraper = UBR5APIScraper()
+    scraper = SemanticScholarScraper()
     
     # Check API key availability
     availability = scraper.check_api_key_availability()
@@ -1402,10 +1409,10 @@ def main():
         return
     
     if max_papers is None:
-        print("\n🚀 Starting unlimited UBR5 paper collection...")
-        print("   This will fetch ALL available papers from Semantic Scholar")
+        print("\n🚀 Starting unlimited paper collection...")
+        print("   This will fetch ALL available papers from Semantic Scholar matching your search keywords")
     else:
-        print(f"\n🚀 Starting UBR5 paper collection (target: {max_papers} papers)...")
+        print(f"\n🚀 Starting paper collection (target: {max_papers} papers)...")
     
     # Run scraping
     scraper.run_complete_scraping(max_papers=max_papers)
