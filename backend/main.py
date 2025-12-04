@@ -14,6 +14,12 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 from config import settings
 from api import auth, hypothesis, database, export_api
 from services.session_service import SessionService
@@ -25,6 +31,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize rate limiter
+# Uses IP address as the default key for rate limiting
+limiter = Limiter(key_func=get_remote_address)
 
 # Initialize services
 session_service = SessionService()
@@ -64,6 +74,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+
+# Add rate limiting middleware
+app.add_middleware(SlowAPIMiddleware)
+
+# Add rate limit exceeded handler
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -79,11 +98,11 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle uncaught exceptions gracefully."""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    # Don't expose internal error types in production
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "An internal server error occurred",
-            "type": type(exc).__name__
+            "detail": "An internal server error occurred"
         }
     )
 

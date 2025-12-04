@@ -1,15 +1,29 @@
 """
 Authentication-related Pydantic models.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
+import re
 
 
 class LoginRequest(BaseModel):
     """Request model for login."""
-    username: str
+    username: str = Field(..., min_length=1, max_length=50)
     password: Optional[str] = None  # Optional for demo mode
+    
+    @field_validator('username')
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        """
+        Sanitize username - allow only safe characters.
+        """
+        # Remove any non-alphanumeric characters except underscore, dash, space
+        v = re.sub(r'[^\w\s-]', '', v)
+        # Collapse multiple spaces
+        v = re.sub(r'\s+', ' ', v).strip()
+        # Limit length
+        return v[:50]
     
     class Config:
         json_schema_extra = {

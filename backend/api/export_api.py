@@ -59,11 +59,23 @@ async def download_export(
     Download an export file.
     
     - Validates session ownership
+    - Validates filename to prevent path traversal
     - Returns file for download
     - Sets appropriate content type
     """
     try:
-        file_path = await export_service.get_export_file(session_id, filename)
+        # Security: Validate filename at API level as well
+        safe_filename = os.path.basename(filename)
+        if safe_filename != filename or not safe_filename:
+            raise HTTPException(status_code=400, detail="Invalid filename")
+        
+        # Only allow specific file extensions
+        allowed_extensions = {".json", ".xlsx", ".pdf", ".csv"}
+        file_extension = os.path.splitext(safe_filename)[1].lower()
+        if file_extension not in allowed_extensions:
+            raise HTTPException(status_code=400, detail="Invalid file type")
+        
+        file_path = await export_service.get_export_file(session_id, safe_filename)
         
         if not file_path or not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="Export file not found")
@@ -76,13 +88,12 @@ async def download_export(
             ".csv": "text/csv"
         }
         
-        file_extension = os.path.splitext(filename)[1].lower()
         media_type = media_type_map.get(file_extension, "application/octet-stream")
         
         return FileResponse(
             path=file_path,
             media_type=media_type,
-            filename=filename
+            filename=safe_filename
         )
         
     except HTTPException:

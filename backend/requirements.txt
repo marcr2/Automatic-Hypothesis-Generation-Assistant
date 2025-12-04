@@ -8,6 +8,9 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 websockets>=12.0
 
+# Rate limiting
+slowapi>=0.1.9
+
 # Core dependencies from main project
 chromadb>=0.5.4
 numpy>=1.24.0

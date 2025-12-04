@@ -380,6 +380,63 @@ if [ -n "$MYSTERY_IP" ]; then
 fi
 
 #############################################################################
+# SSL/HTTPS Setup with Let's Encrypt (Optional)
+#############################################################################
+
+if [ "$SUDO_AVAILABLE" = true ]; then
+    print_step "SSL/HTTPS Configuration..."
+
+    read -p "Set up HTTPS with Let's Encrypt? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Install Certbot
+        print_step "Installing Certbot for Let's Encrypt..."
+        sudo apt-get update
+        sudo apt-get install -y certbot python3-certbot-nginx
+
+        read -p "Enter your domain name (e.g., research.example.com): " DOMAIN_NAME
+        
+        if [ -n "$DOMAIN_NAME" ]; then
+            # Create SSL directory
+            mkdir -p "$PROJECT_ROOT/nginx/ssl"
+            
+            # Create certbot webroot directory
+            sudo mkdir -p /var/www/certbot
+            
+            echo ""
+            echo -e "${BLUE}To obtain SSL certificate, run:${NC}"
+            echo "sudo certbot certonly --webroot -w /var/www/certbot -d $DOMAIN_NAME"
+            echo ""
+            echo -e "${BLUE}Then copy certificates to nginx/ssl/:${NC}"
+            echo "sudo cp /etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem $PROJECT_ROOT/nginx/ssl/"
+            echo "sudo cp /etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem $PROJECT_ROOT/nginx/ssl/"
+            echo "sudo chown \$USER:users $PROJECT_ROOT/nginx/ssl/*.pem"
+            echo ""
+            echo -e "${BLUE}Set up auto-renewal:${NC}"
+            echo "sudo certbot renew --dry-run"
+            echo ""
+            
+            # Save domain to config
+            echo "DOMAIN_NAME=$DOMAIN_NAME" >> "$ENV_FILE"
+            
+            print_success "Certbot installed. Follow the steps above to complete SSL setup."
+        fi
+    else
+        print_warning "Skipping SSL setup. You can set it up later with Certbot."
+    fi
+fi
+
+#############################################################################
+# Generate SECRET_KEY
+#############################################################################
+
+print_step "Generating secure SECRET_KEY..."
+SECRET_KEY=$(openssl rand -hex 32)
+echo "SECRET_KEY=$SECRET_KEY" >> "$ENV_FILE"
+echo "ENVIRONMENT=production" >> "$ENV_FILE"
+print_success "SECRET_KEY generated and added to .env"
+
+#############################################################################
 # Installation Complete
 #############################################################################
 
@@ -395,6 +452,12 @@ echo "   OR: sudo systemctl start vllm (if installed as service)"
 echo "3. Verify configuration: python -m src.cli.main config show --profile m3"
 echo "4. Test connectivity: python scripts/test_distributed_setup.py"
 echo "5. Run data pipeline: python -m src.cli.main scrape full"
+echo "6. Start web application: ./scripts/start_web.sh"
+echo ""
+echo -e "${BLUE}Security:${NC}"
+echo "- SECRET_KEY has been generated automatically"
+echo "- Set up HTTPS with Let's Encrypt for production"
+echo "- API keys should be set in .env (not keys.json)"
 echo ""
 echo -e "${BLUE}Important:${NC}"
 echo "- Edit .env file to update API keys if needed"

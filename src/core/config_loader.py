@@ -2,6 +2,9 @@
 Configuration Loader - Centralized configuration management
 Loads settings from environment variables and config files with proper precedence
 Supports machine profiles for distributed deployments
+
+SECURITY NOTE: API keys should be set via environment variables, not config files.
+The keys.json file is deprecated and will be removed in a future version.
 """
 import os
 import json
@@ -10,6 +13,9 @@ import socket
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+# Security warning flag - track if keys.json was used
+_KEYS_JSON_WARNING_SHOWN = False
 
 
 class ExecutionConfig:
@@ -83,19 +89,29 @@ class ExecutionConfig:
             self.machine_name = profile_config.get("machine_name")
             logger.info(f"✅ Loaded machine profile: {self.machine_name}")
         
-        # Load API keys from keys.json
+        # Load API keys from keys.json (DEPRECATED - use environment variables instead)
+        # This is only used as a fallback for backwards compatibility
+        global _KEYS_JSON_WARNING_SHOWN
         if os.path.exists(self.keys_path):
             try:
                 with open(self.keys_path, 'r') as f:
                     keys = json.load(f)
-                    # Merge keys into config sections
-                    if "GEMINI_API_KEY" in keys and not config["llm"].get("api_key"):
+                    keys_loaded = False
+                    # Merge keys into config sections (only if not already set by env vars)
+                    if "GEMINI_API_KEY" in keys and keys["GEMINI_API_KEY"] and not config["llm"].get("api_key"):
                         config["llm"]["api_key"] = keys["GEMINI_API_KEY"]
-                    if "GOOGLE_API_KEY" in keys and not config["embeddings"].get("google_api_key"):
+                        keys_loaded = True
+                    if "GOOGLE_API_KEY" in keys and keys["GOOGLE_API_KEY"] and not config["embeddings"].get("google_api_key"):
                         config["embeddings"]["google_api_key"] = keys["GOOGLE_API_KEY"]
-                    logger.info(f"📄 Loaded API keys from {self.keys_path}")
+                        keys_loaded = True
+                    
+                    if keys_loaded and not _KEYS_JSON_WARNING_SHOWN:
+                        logger.warning("⚠️  SECURITY WARNING: Loading API keys from keys.json is deprecated!")
+                        logger.warning("   Please set GOOGLE_API_KEY and GEMINI_API_KEY as environment variables.")
+                        logger.warning("   keys.json support will be removed in a future version.")
+                        _KEYS_JSON_WARNING_SHOWN = True
             except Exception as e:
-                logger.warning(f"⚠️ Failed to load {self.keys_path}: {e}")
+                logger.debug(f"Could not load {self.keys_path}: {e}")
         
         # Override with environment variables (highest priority)
         config = self._apply_env_overrides(config)

@@ -245,11 +245,48 @@ Total Hypotheses: {result.total_count}
             f.write(text_content)
     
     async def get_export_file(self, session_id: str, filename: str) -> Optional[str]:
-        """Get path to export file if it exists and belongs to session."""
-        session_path = self.session_service.get_session_path(session_id)
-        file_path = os.path.join(session_path, "exports", filename)
+        """
+        Get path to export file if it exists and belongs to session.
         
-        if os.path.exists(file_path):
+        Security: Validates filename to prevent path traversal attacks.
+        
+        Args:
+            session_id: The session ID
+            filename: The requested filename
+            
+        Returns:
+            Full path to the file if valid and exists, None otherwise
+        """
+        # Security: Sanitize filename to prevent path traversal
+        # os.path.basename removes any directory components
+        safe_filename = os.path.basename(filename)
+        
+        # Reject if the filename was modified (contained path separators)
+        if safe_filename != filename or not safe_filename:
+            logger.warning(f"Path traversal attempt detected: {filename}")
+            return None
+        
+        # Reject filenames with suspicious patterns
+        if '..' in filename or filename.startswith('.'):
+            logger.warning(f"Suspicious filename rejected: {filename}")
+            return None
+        
+        # Build the expected path
+        session_path = self.session_service.get_session_path(session_id)
+        exports_dir = os.path.join(session_path, "exports")
+        file_path = os.path.join(exports_dir, safe_filename)
+        
+        # Security: Verify the resolved path is within the expected directory
+        # This catches any edge cases with symlinks or path canonicalization
+        real_file_path = os.path.realpath(file_path)
+        real_exports_dir = os.path.realpath(exports_dir)
+        
+        if not real_file_path.startswith(real_exports_dir + os.sep):
+            logger.warning(f"Path traversal blocked: {filename} resolved to {real_file_path}")
+            return None
+        
+        # Check if file exists
+        if os.path.exists(file_path) and os.path.isfile(file_path):
             return file_path
         
         return None

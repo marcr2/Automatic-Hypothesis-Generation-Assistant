@@ -1,10 +1,13 @@
 """
 Hypothesis generation API endpoints.
 """
-from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request
 from typing import Dict
 import logging
 import asyncio
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from models.hypothesis import (
     HypothesisGenerateRequest,
@@ -14,17 +17,44 @@ from models.hypothesis import (
     GenerationStatus
 )
 from services.hypothesis_service import HypothesisService
-from api.auth import require_session
+from services.session_service import SessionService
+from api.auth import require_session, get_session_id
+from config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Initialize hypothesis service
+# Initialize services
 hypothesis_service = HypothesisService()
+session_service = SessionService()
+
+# Rate limiter - will use the app's limiter
+limiter = Limiter(key_func=get_remote_address)
+
+
+def get_session_key(request: Request) -> str:
+    """
+    Get rate limiting key based on session ID.
+    Falls back to IP address if no session.
+    """
+    # Try to get session ID from cookie
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        return f"session:{session_id}"
+    
+    # Try Authorization header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return f"session:{auth_header.replace('Bearer ', '')}"
+    
+    # Fall back to IP
+    return f"ip:{get_remote_address(request)}"
 
 
 @router.post("/generate", response_model=HypothesisGenerateResponse)
+@limiter.limit(f"{settings.max_generations_per_hour}/hour", key_func=get_session_key)
 async def generate_hypotheses(
+    request: Request,
     request_data: HypothesisGenerateRequest,
     session_id: str = Depends(require_session)
 ):
@@ -34,6 +64,8 @@ async def generate_hypotheses(
     - Validates request
     - Creates generation job
     - Returns job ID for status tracking
+    
+    Rate limited to 5 requests per hour per session (configurable).
     """
     try:
         logger.info(f"📝 Hypothesis generation requested by session: {session_id}")
@@ -153,12 +185,29 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     """
     WebSocket endpoint for real-time progress updates.
     
+    - Validates session before accepting connection
     - Sends progress updates during generation
     - Provides status messages
     - Notifies on completion or errors
+    
+    Security: Session must be valid to establish WebSocket connection.
     """
+    # Security: Validate session exists and is valid BEFORE accepting connection
+    session = await session_service.get_session(session_id)
+    
+    if not session:
+        logger.warning(f"WebSocket rejected: Invalid session ID {session_id[:8]}...")
+        await websocket.close(code=4001, reason="Invalid session")
+        return
+    
+    if not session.is_valid():
+        logger.warning(f"WebSocket rejected: Expired session {session_id[:8]}...")
+        await websocket.close(code=4002, reason="Session expired")
+        return
+    
+    # Session is valid, accept the connection
     await websocket.accept()
-    logger.info(f"🔌 WebSocket connected: {session_id}")
+    logger.info(f"🔌 WebSocket connected: {session_id[:8]}...")
     
     try:
         # Register websocket for this session
@@ -178,8 +227,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 # Send heartbeat
                 await websocket.send_json({"type": "heartbeat"})
                 
+                # Periodically re-validate session
+                session = await session_service.get_session(session_id)
+                if not session or not session.is_valid():
+                    logger.info(f"🔌 WebSocket closing: Session expired {session_id[:8]}...")
+                    await websocket.close(code=4002, reason="Session expired")
+                    break
+                
     except WebSocketDisconnect:
-        logger.info(f"🔌 WebSocket disconnected: {session_id}")
+        logger.info(f"🔌 WebSocket disconnected: {session_id[:8]}...")
     except Exception as e:
         logger.error(f"❌ WebSocket error: {e}", exc_info=True)
     finally:

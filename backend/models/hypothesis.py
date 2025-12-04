@@ -1,7 +1,7 @@
 """
 Hypothesis generation-related Pydantic models.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -21,6 +21,43 @@ class HypothesisGenerateRequest(BaseModel):
     research_topic: str = Field(..., min_length=5, max_length=500)
     num_hypotheses: int = Field(default=10, ge=1, le=50)
     advanced_options: Optional[Dict[str, Any]] = None
+    
+    @field_validator('research_topic')
+    @classmethod
+    def sanitize_research_topic(cls, v: str) -> str:
+        """
+        Sanitize research topic to prevent prompt injection.
+        
+        Removes potentially dangerous patterns while preserving
+        legitimate scientific notation.
+        """
+        import re
+        
+        # Remove control characters
+        v = ''.join(char for char in v if ord(char) >= 32 or char in '\n\t')
+        
+        # Remove obvious prompt injection patterns
+        dangerous_patterns = [
+            r'ignore\s+(previous|all|above)\s+instructions?',
+            r'disregard\s+(previous|all|above)',
+            r'forget\s+(previous|all|above)',
+            r'new\s+instructions?:',
+            r'system\s*:',
+            r'assistant\s*:',
+            r'user\s*:',
+            r'\[INST\]',
+            r'\[/INST\]',
+            r'<\|im_start\|>',
+            r'<\|im_end\|>',
+        ]
+        
+        for pattern in dangerous_patterns:
+            v = re.sub(pattern, '', v, flags=re.IGNORECASE)
+        
+        # Collapse multiple spaces/newlines
+        v = re.sub(r'\s+', ' ', v).strip()
+        
+        return v
     
     class Config:
         json_schema_extra = {

@@ -6,12 +6,19 @@ from fastapi.security import HTTPBearer
 from typing import Optional
 import logging
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 from models.auth import LoginRequest, LoginResponse, SessionInfo
 from services.session_service import SessionService
+from config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
+
+# Rate limiter for auth endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 # Initialize session service
 session_service = SessionService()
@@ -33,13 +40,16 @@ async def get_session_id(request: Request) -> Optional[str]:
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit(f"{settings.login_rate_limit}/minute")
 async def login(request: Request, login_data: LoginRequest, response: Response):
     """
     Create a new session for a user.
     
-    - Simple username-based authentication (password optional for demo mode)
+    - Simple username-based authentication for session tracking
     - Creates ephemeral session
     - Returns session token
+    
+    Rate limited to prevent abuse (10 requests per minute per IP by default).
     """
     try:
         # Get client information
@@ -54,12 +64,17 @@ async def login(request: Request, login_data: LoginRequest, response: Response):
         )
         
         # Set session cookie
+        # secure=True ensures cookie is only sent over HTTPS
+        # samesite="strict" provides stronger CSRF protection
+        from config import settings
+        is_production = settings.environment.lower() == "production"
+        
         response.set_cookie(
             key="session_id",
             value=session.session_id,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax",
+            secure=is_production,  # True in production (HTTPS required)
+            samesite="strict" if is_production else "lax",
             max_age=session.timeout_seconds
         )
         

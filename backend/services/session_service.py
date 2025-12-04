@@ -1,9 +1,12 @@
 """
 Session management service for handling user sessions and ephemeral data.
+
+Security: Uses cryptographically secure session token generation.
 """
 import os
 import shutil
-import uuid
+import secrets
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from dataclasses import dataclass
@@ -14,6 +17,10 @@ from pathlib import Path
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+# Session ID format: 43 characters of URL-safe base64 (256 bits of entropy)
+SESSION_ID_LENGTH = 32  # bytes, produces 43 character token
+SESSION_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{43}$')
 
 
 @dataclass
@@ -77,16 +84,34 @@ class SessionService:
             """)
             await db.commit()
     
+    @staticmethod
+    def is_valid_session_id(session_id: str) -> bool:
+        """
+        Validate session ID format.
+        
+        Security: Ensures session IDs match expected format to prevent
+        injection attacks and identify invalid/forged session IDs.
+        """
+        if not session_id or not isinstance(session_id, str):
+            return False
+        return bool(SESSION_ID_PATTERN.match(session_id))
+    
     async def create_session(
         self,
         username: str,
         ip_address: str,
         user_agent: str
     ) -> Session:
-        """Create a new session."""
+        """
+        Create a new session with cryptographically secure session ID.
+        
+        Security: Uses secrets.token_urlsafe() for unpredictable session IDs.
+        """
         await self._init_db()
         
-        session_id = str(uuid.uuid4())
+        # Generate cryptographically secure session ID
+        # 32 bytes = 256 bits of entropy, encoded as URL-safe base64 (43 chars)
+        session_id = secrets.token_urlsafe(SESSION_ID_LENGTH)
         created_at = datetime.utcnow()
         timeout_seconds = settings.session_timeout_hours * 3600
         expires_at = created_at + timedelta(seconds=timeout_seconds)
@@ -122,7 +147,16 @@ class SessionService:
         return session
     
     async def get_session(self, session_id: str) -> Optional[Session]:
-        """Get session by ID."""
+        """
+        Get session by ID.
+        
+        Security: Validates session ID format before lookup.
+        """
+        # Validate session ID format to prevent attacks
+        if not self.is_valid_session_id(session_id):
+            logger.warning(f"Invalid session ID format attempted: {session_id[:20] if session_id else 'None'}...")
+            return None
+        
         return self.sessions.get(session_id)
     
     async def update_activity(self, session_id: str):
