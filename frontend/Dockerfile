@@ -17,6 +17,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Debug: Show what files were copied
+RUN echo "=== Contents of /app ===" && ls -la /app
+RUN echo "=== Contents of /app/lib ===" && ls -la /app/lib
+RUN echo "=== tsconfig.json contents ===" && cat /app/tsconfig.json
+
 # Set build-time environment variables
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WS_URL
