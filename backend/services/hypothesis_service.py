@@ -1,5 +1,8 @@
 """
 Hypothesis generation service - wraps the existing enhanced_rag_with_chromadb.py for web API.
+
+Handles service unavailability (ChromaDB, LLM) gracefully, providing user-friendly
+error messages instead of crashing.
 """
 import asyncio
 import json
@@ -15,6 +18,7 @@ from fastapi import WebSocket
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.hypothesis import (
     HypothesisStatus,
@@ -25,6 +29,7 @@ from models.hypothesis import (
     GenerationStatus
 )
 from services.session_service import SessionService
+from exceptions import ChromaDBUnavailableError, LLMUnavailableError, HypothesisGenerationError
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -143,15 +148,51 @@ class HypothesisService:
         except asyncio.CancelledError:
             job.status = GenerationStatus.CANCELLED
             job.error_message = "Job was cancelled"
+            job.current_step = "Cancelled"
             await self._send_update(job)
             logger.info(f"⚠️ Hypothesis generation cancelled: {job.job_id}")
-            
-        except Exception as e:
+        
+        except ChromaDBUnavailableError as e:
+            # ChromaDB is unavailable - provide user-friendly message
             job.status = GenerationStatus.FAILED
-            job.error_message = str(e)
+            job.error_message = f"Database unavailable: {e.message}"
+            if e.details:
+                job.error_message += f" ({e.details})"
+            job.current_step = "Failed - Database unavailable"
             job.completed_at = datetime.utcnow()
             await self._send_update(job)
-            logger.error(f"❌ Hypothesis generation failed: {job.job_id} - {e}", exc_info=True)
+            logger.error(f"❌ Hypothesis generation failed (ChromaDB unavailable): {job.job_id} - {e.message}")
+        
+        except LLMUnavailableError as e:
+            # LLM service is unavailable - provide user-friendly message
+            job.status = GenerationStatus.FAILED
+            job.error_message = f"AI service unavailable: {e.message}"
+            if e.details:
+                job.error_message += f" ({e.details})"
+            job.current_step = "Failed - AI service unavailable"
+            job.completed_at = datetime.utcnow()
+            await self._send_update(job)
+            logger.error(f"❌ Hypothesis generation failed (LLM unavailable): {job.job_id} - {e.message}")
+        
+        except HypothesisGenerationError as e:
+            # Generation-specific error - provide user-friendly message
+            job.status = GenerationStatus.FAILED
+            job.error_message = e.message
+            if e.details:
+                job.error_message += f": {e.details}"
+            job.current_step = f"Failed - {e.stage if e.stage else 'Generation error'}"
+            job.completed_at = datetime.utcnow()
+            await self._send_update(job)
+            logger.error(f"❌ Hypothesis generation failed: {job.job_id} - {e.message}")
+            
+        except Exception as e:
+            # Unexpected error - log full details but provide generic message
+            job.status = GenerationStatus.FAILED
+            job.error_message = f"An unexpected error occurred: {str(e)}"
+            job.current_step = "Failed - Unexpected error"
+            job.completed_at = datetime.utcnow()
+            await self._send_update(job)
+            logger.error(f"❌ Hypothesis generation failed (unexpected): {job.job_id} - {e}", exc_info=True)
     
     async def _generate_hypotheses_sync(
         self,
@@ -215,6 +256,12 @@ class HypothesisService:
                     "hypotheses_generated": job.hypotheses_generated,
                     "total_hypotheses": job.num_hypotheses
                 }
+                
+                # Include error message if job failed
+                if job.status == GenerationStatus.FAILED and job.error_message:
+                    status_dict["error_message"] = job.error_message
+                    status_dict["type"] = "error"
+                
                 await websocket.send_json(status_dict)
             except Exception as e:
                 logger.warning(f"⚠️ Failed to send WebSocket update: {e}")

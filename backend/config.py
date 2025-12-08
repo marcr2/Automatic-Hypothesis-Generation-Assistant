@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     logs_db_path: str = "./logs/sessions.db"
     config_path: str = "../config"
     
+    # Logging Configuration
+    debug_mode: bool = False
+    log_level: str = "INFO"
+    log_dir: str = "./logs"
+    log_max_bytes: int = 10485760  # 10MB
+    log_backup_count: int = 5
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

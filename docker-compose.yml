@@ -10,14 +10,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
-        NEXT_PUBLIC_WS_URL: ws://localhost:8000
+        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-8000}
+        NEXT_PUBLIC_WS_URL: ws://localhost:${API_PORT:-8000}
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_WS_URL=ws://backend:8000
+      - NEXT_PUBLIC_API_URL=http://backend:${API_PORT:-8000}
+      - NEXT_PUBLIC_WS_URL=ws://backend:${API_PORT:-8000}
     depends_on:
       - backend
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:${API_PORT:-8000}"
     volumes:
       - ./data:/app/data
       - ./config:/app/config
@@ -39,9 +39,13 @@ services:
     environment:
       # Server Configuration
       - API_HOST=0.0.0.0
-      - API_PORT=8000
+      - API_PORT=${API_PORT:-8000}
       - SESSION_TIMEOUT_HOURS=2
       - CLEANUP_INTERVAL_MINUTES=30
+      
+      # Logging Configuration
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
       
       # CORS Settings
       - ALLOWED_ORIGINS=http://localhost:3000,http://frontend:3000

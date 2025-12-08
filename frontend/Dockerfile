@@ -19,7 +19,7 @@ COPY . .
 
 # Debug: Show what files were copied
 RUN echo "=== Contents of /app ===" && ls -la /app
-RUN echo "=== Contents of /app/lib ===" && ls -la /app/lib
+RUN echo "=== Contents of /app/lib ===" && ls -la /app/lib || echo "ERROR: lib folder is missing!"
 RUN echo "=== tsconfig.json contents ===" && cat /app/tsconfig.json
 
 # Set build-time environment variables

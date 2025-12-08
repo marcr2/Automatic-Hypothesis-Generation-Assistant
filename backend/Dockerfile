@@ -28,12 +28,15 @@ COPY config/ /app/config/
 # Create necessary directories
 RUN mkdir -p /app/temp_sessions /app/logs /app/data
 
-# Expose port
-EXPOSE 8000
-
 # Set Python path
 ENV PYTHONPATH=/app
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default API port (can be overridden via environment variable)
+ENV API_PORT=8000
+
+# Expose port (note: this is documentation only, actual port is set at runtime)
+EXPOSE ${API_PORT}
+
+# Run the application with configurable port
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${API_PORT}"]
 

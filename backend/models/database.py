@@ -29,6 +29,7 @@ class DatabaseStatus(BaseModel):
     collections: List[CollectionInfo]
     source_breakdown: SourceBreakdown
     last_updated: Optional[datetime] = None
+    error_message: Optional[str] = None
     
     class Config:
         json_schema_extra = {
@@ -47,7 +48,8 @@ class DatabaseStatus(BaseModel):
                     "medrxiv": 25000,
                     "semantic_scholar": 20000
                 },
-                "last_updated": "2025-11-19T08:00:00Z"
+                "last_updated": "2025-11-19T08:00:00Z",
+                "error_message": None
             }
         }
 

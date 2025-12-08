@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+from logging.handlers import RotatingFileHandler
+from datetime import datetime
 
 # Rate limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -25,12 +27,77 @@ from api import auth, hypothesis, database, export_api
 from services.session_service import SessionService
 from services.cleanup_service import CleanupService
 
+
+def setup_logging():
+    """
+    Configure comprehensive logging with file handlers for debug and crash logs.
+    
+    Creates:
+    - Console handler for INFO+ level messages
+    - Debug log file with rotating handler (all messages when debug_mode is True)
+    - Crash log file for ERROR+ level messages with full tracebacks
+    """
+    # Create logs directory if it doesn't exist
+    os.makedirs(settings.log_dir, exist_ok=True)
+    
+    # Determine log level
+    log_level = logging.DEBUG if settings.debug_mode else getattr(logging, settings.log_level.upper(), logging.INFO)
+    
+    # Root logger configuration
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)  # Capture all, filter at handler level
+    
+    # Clear any existing handlers
+    root_logger.handlers.clear()
+    
+    # Log format
+    detailed_format = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    )
+    simple_format = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Console handler (INFO+ level, or DEBUG if debug_mode is enabled)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(simple_format)
+    root_logger.addHandler(console_handler)
+    
+    # Debug log file handler (rotating, captures everything when debug mode is on)
+    debug_log_path = os.path.join(settings.log_dir, 'debug.log')
+    debug_handler = RotatingFileHandler(
+        debug_log_path,
+        maxBytes=settings.log_max_bytes,
+        backupCount=settings.log_backup_count,
+        encoding='utf-8'
+    )
+    debug_handler.setLevel(logging.DEBUG if settings.debug_mode else logging.INFO)
+    debug_handler.setFormatter(detailed_format)
+    root_logger.addHandler(debug_handler)
+    
+    # Crash/error log file handler (rotating, ERROR+ level only)
+    crash_log_path = os.path.join(settings.log_dir, 'crash.log')
+    crash_handler = RotatingFileHandler(
+        crash_log_path,
+        maxBytes=settings.log_max_bytes,
+        backupCount=settings.log_backup_count,
+        encoding='utf-8'
+    )
+    crash_handler.setLevel(logging.ERROR)
+    crash_handler.setFormatter(detailed_format)
+    root_logger.addHandler(crash_handler)
+    
+    # Log startup message
+    startup_logger = logging.getLogger(__name__)
+    startup_logger.info(f"Logging initialized - Level: {settings.log_level}, Debug Mode: {settings.debug_mode}")
+    startup_logger.info(f"Log files: {debug_log_path}, {crash_log_path}")
+    
+    return startup_logger
+
+
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging()
 
 # Initialize rate limiter
 # Uses IP address as the default key for rate limiting
@@ -45,10 +112,18 @@ cleanup_service = CleanupService()
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
+    logger.info("=" * 60)
     logger.info("🚀 Starting AI Research Processor Web API")
+    logger.info("=" * 60)
+    logger.info(f"   API Host: {settings.api_host}")
+    logger.info(f"   API Port: {settings.api_port}")
+    logger.info(f"   Environment: {settings.environment}")
+    logger.info(f"   Debug Mode: {settings.debug_mode}")
+    logger.info(f"   Log Level: {settings.log_level}")
     logger.info(f"   Execution Mode: {settings.execution_mode}")
     logger.info(f"   ChromaDB: {settings.chroma_host}:{settings.chroma_port}")
     logger.info(f"   LLM Provider: {settings.llm_provider}")
+    logger.info("=" * 60)
     
     # Create necessary directories
     os.makedirs(settings.temp_sessions_path, exist_ok=True)
@@ -96,13 +171,25 @@ app.add_middleware(
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Handle uncaught exceptions gracefully."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    """Handle uncaught exceptions gracefully and log to crash log."""
+    # Log detailed error information for debugging
+    error_id = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')
+    logger.error(
+        f"[ERROR_ID: {error_id}] Unhandled exception on {request.method} {request.url.path}: {exc}",
+        exc_info=True
+    )
+    logger.error(f"[ERROR_ID: {error_id}] Request headers: {dict(request.headers)}")
+    
     # Don't expose internal error types in production
+    error_message = "An internal server error occurred"
+    if settings.debug_mode:
+        error_message = f"{error_message}. Error ID: {error_id}. Details: {str(exc)}"
+    
     return JSONResponse(
         status_code=500,
         content={
-            "detail": "An internal server error occurred"
+            "detail": error_message,
+            "error_id": error_id
         }
     )
 

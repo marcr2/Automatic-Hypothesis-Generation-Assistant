@@ -1,6 +1,9 @@
 """
 Adapter for the Enhanced RAG System to work with async web API.
 Wraps the existing enhanced_rag_with_chromadb.py for session-isolated hypothesis generation.
+
+Handles ChromaDB unavailability gracefully, raising specific exceptions that
+can be caught and handled by the API layer.
 """
 import sys
 import os
@@ -14,12 +17,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.hypothesis import (
     HypothesisItem,
     HypothesisScores,
     HypothesisCitation
 )
+from exceptions import ChromaDBUnavailableError, HypothesisGenerationError, LLMUnavailableError
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +67,11 @@ class RAGAdapter:
         
         Returns:
             List of generated hypotheses
+            
+        Raises:
+            ChromaDBUnavailableError: If ChromaDB is unavailable
+            LLMUnavailableError: If LLM service is unavailable
+            HypothesisGenerationError: If generation fails for other reasons
         """
         logger.info(f"🔬 Starting hypothesis generation for: {research_topic}")
         
@@ -78,9 +89,17 @@ class RAGAdapter:
             logger.info(f"✅ Generated {len(hypotheses)} hypotheses")
             return hypotheses
             
-        except Exception as e:
-            logger.error(f"❌ Hypothesis generation failed: {e}", exc_info=True)
+        except (ChromaDBUnavailableError, LLMUnavailableError, HypothesisGenerationError) as e:
+            # Log and re-raise custom exceptions
+            logger.error(f"❌ Hypothesis generation failed: {e.message}", exc_info=False)
             raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during hypothesis generation: {e}", exc_info=True)
+            raise HypothesisGenerationError(
+                message="Hypothesis generation failed unexpectedly",
+                details=str(e),
+                stage="async_execution"
+            )
     
     def _generate_sync(
         self,
@@ -91,7 +110,15 @@ class RAGAdapter:
         """
         Synchronous hypothesis generation (runs in thread executor).
         This is where we integrate with the actual RAG system.
+        
+        Raises:
+            ChromaDBUnavailableError: If ChromaDB connection fails
+            LLMUnavailableError: If LLM service is unavailable
+            HypothesisGenerationError: If hypothesis generation fails for other reasons
         """
+        chroma_manager = None
+        llm_client = None
+        
         try:
             # Import the RAG system (heavy import done in thread)
             from src.core.chromadb_manager import ChromaDBManager
@@ -101,24 +128,66 @@ class RAGAdapter:
             if progress_callback:
                 progress_callback(5.0, "Initializing ChromaDB connection...", 0)
             
-            # Initialize components
-            chroma_manager = ChromaDBManager()
-            llm_client = LLMClient()
-            hypothesis_generator = HypothesisGenerator(llm_client)
-            hypothesis_critic = HypothesisCritic(llm_client)
+            # Initialize ChromaDB with graceful error handling
+            try:
+                chroma_manager = ChromaDBManager()
+                logger.info("✅ ChromaDB manager initialized for hypothesis generation")
+            except ConnectionError as e:
+                logger.error(f"❌ ChromaDB connection failed: {e}")
+                raise ChromaDBUnavailableError(
+                    message="Cannot connect to ChromaDB database",
+                    details=str(e),
+                    host=settings.chroma_host,
+                    port=settings.chroma_port
+                )
+            except Exception as e:
+                logger.error(f"❌ ChromaDB initialization failed: {e}", exc_info=True)
+                raise ChromaDBUnavailableError(
+                    message="Failed to initialize ChromaDB connection",
+                    details=str(e),
+                    host=settings.chroma_host,
+                    port=settings.chroma_port
+                )
+            
+            # Initialize LLM client with graceful error handling
+            try:
+                llm_client = LLMClient()
+                hypothesis_generator = HypothesisGenerator(llm_client)
+                hypothesis_critic = HypothesisCritic(llm_client)
+                logger.info("✅ LLM client initialized for hypothesis generation")
+            except Exception as e:
+                logger.error(f"❌ LLM client initialization failed: {e}", exc_info=True)
+                raise LLMUnavailableError(
+                    message="Cannot connect to LLM service",
+                    details=str(e),
+                    provider=settings.llm_provider
+                )
             
             if progress_callback:
                 progress_callback(15.0, "Searching literature database...", 0)
             
-            # Search for relevant papers
-            query = research_topic
-            results = chroma_manager.similarity_search(
-                query=query,
-                n_results=50  # Get top 50 relevant papers
-            )
+            # Search for relevant papers with error handling
+            try:
+                query = research_topic
+                results = chroma_manager.similarity_search(
+                    query=query,
+                    n_results=50  # Get top 50 relevant papers
+                )
+            except Exception as e:
+                logger.error(f"❌ ChromaDB search failed: {e}", exc_info=True)
+                raise ChromaDBUnavailableError(
+                    message="Failed to search literature database",
+                    details=f"Search query failed: {str(e)}",
+                    host=settings.chroma_host,
+                    port=settings.chroma_port
+                )
             
             if not results or not results.get("documents"):
-                raise ValueError("No relevant papers found in database")
+                raise HypothesisGenerationError(
+                    message="No relevant papers found in database",
+                    details="The literature search returned no results. Please ensure the database is populated with relevant papers.",
+                    stage="literature_search"
+                )
             
             if progress_callback:
                 progress_callback(25.0, "Analyzing literature...", 0)
@@ -133,11 +202,15 @@ class RAGAdapter:
                 }
                 papers.append(paper)
             
+            logger.info(f"📚 Found {len(papers)} relevant papers for topic: {research_topic}")
+            
             if progress_callback:
                 progress_callback(30.0, f"Generating hypotheses (0/{num_hypotheses})...", 0)
             
             # Generate hypotheses
             hypotheses = []
+            generation_errors = []
+            
             for i in range(num_hypotheses):
                 try:
                     # Update progress
@@ -179,11 +252,22 @@ class RAGAdapter:
                     )
                     
                     hypotheses.append(hypothesis_item)
+                    logger.debug(f"✅ Generated hypothesis {i+1}/{num_hypotheses}")
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to generate hypothesis {i+1}: {e}")
+                    error_msg = f"Failed to generate hypothesis {i+1}: {e}"
+                    logger.warning(f"⚠️ {error_msg}")
+                    generation_errors.append(error_msg)
                     # Continue with next hypothesis
                     continue
+            
+            # Check if we generated any hypotheses
+            if len(hypotheses) == 0:
+                raise HypothesisGenerationError(
+                    message="Failed to generate any hypotheses",
+                    details=f"All {num_hypotheses} generation attempts failed. Errors: {'; '.join(generation_errors[:3])}",
+                    stage="hypothesis_generation"
+                )
             
             if progress_callback:
                 progress_callback(95.0, "Finalizing results...", len(hypotheses))
@@ -194,11 +278,22 @@ class RAGAdapter:
             if progress_callback:
                 progress_callback(100.0, "Complete!", len(hypotheses))
             
+            logger.info(f"✅ Successfully generated {len(hypotheses)}/{num_hypotheses} hypotheses")
+            if generation_errors:
+                logger.warning(f"⚠️ {len(generation_errors)} hypothesis generation attempts failed")
+            
             return hypotheses
             
-        except Exception as e:
-            logger.error(f"❌ Error in sync generation: {e}", exc_info=True)
+        except (ChromaDBUnavailableError, LLMUnavailableError, HypothesisGenerationError):
+            # Re-raise our custom exceptions
             raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error in hypothesis generation: {e}", exc_info=True)
+            raise HypothesisGenerationError(
+                message="Hypothesis generation failed unexpectedly",
+                details=str(e),
+                stage="unknown"
+            )
     
     def _parse_scores(self, critique: str) -> HypothesisScores:
         """Parse scores from critique text."""
