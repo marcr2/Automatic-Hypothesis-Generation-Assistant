@@ -7,7 +7,7 @@ A comprehensive research tool with an intuitive graphical interface that scrapes
 ## 🚀 Quick Start
 
 ## We now have a website!
-You can find AHGA at www.https://ahga.it.com
+You can find AHGA at ahga.it.com
 
 #However if you prefer local usage, we also have a local installation option:
 
